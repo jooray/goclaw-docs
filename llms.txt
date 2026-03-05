@@ -1,0 +1,45 @@
+# GoClaw
+
+> GoClaw is a multi-agent AI gateway written in Go. It connects LLMs to tools, channels, and data via WebSocket RPC and OpenAI-compatible HTTP API. Supports 13+ LLM providers, agent teams, delegation, quality gates, MCP integration, and multi-tenant PostgreSQL.
+
+## Documentation
+
+- [Getting Started](https://docs.goclaw.sh/#getting-started): Quick start guide, installation, configuration, supported providers
+- [Architecture Overview](https://docs.goclaw.sh/#architecture): Component diagram, module map, two operating modes, multi-tenant identity model, startup sequence
+- [Agent Loop](https://docs.goclaw.sh/#agent-loop): Think-Act-Observe cycle, system prompt (15+ sections), output sanitization, input guard, history pipeline, context pruning, auto-summarization
+- [LLM Providers](https://docs.goclaw.sh/#providers): Anthropic (native HTTP+SSE) and OpenAI-compatible, retry logic, schema cleaning, managed mode DB providers
+- [Tools System](https://docs.goclaw.sh/#tools): 30+ built-in tools, filesystem, shell execution, web, memory, subagents, delegation, teams, MCP bridge, custom tools, policy engine, credential scrubbing
+- [Gateway & Protocol](https://docs.goclaw.sh/#gateway): WebSocket Protocol v3, HTTP REST API, RBAC (admin/operator/viewer), RPC methods, rate limiting
+- [Channels & Messaging](https://docs.goclaw.sh/#channels): Telegram, Discord, Feishu/Lark, Zalo, WhatsApp adapters, pairing system, channel policies
+- [Store & Data Model](https://docs.goclaw.sh/#store): Store interfaces, PostgreSQL schema, file-based implementations, session caching
+- [Bootstrap, Skills & Memory](https://docs.goclaw.sh/#bootstrap): Bootstrap files (SOUL.md, IDENTITY.md), skills system (BM25 + embeddings), memory (SQLite FTS5 / pgvector)
+- [Scheduling & Cron](https://docs.goclaw.sh/#scheduling): Lane-based concurrency (main/subagent/cron/delegate), cron lifecycle, heartbeat service
+- [Security](https://docs.goclaw.sh/#security): 5-layer defense-in-depth, AES-256-GCM encryption, RBAC, shell deny patterns, sandbox
+- [Tracing & Observability](https://docs.goclaw.sh/#tracing): Tracing collector, span hierarchy, OpenTelemetry OTLP export, trace API
+- [Web Dashboard](https://docs.goclaw.sh/#dashboard): React 19 SPA admin dashboard, agent management, chat, traces, providers, config, 17 pages across Core/Management/Monitoring/System
+- [API Reference](https://docs.goclaw.sh/#api-reference): HTTP endpoints, custom tools API, MCP server management API
+- [WebSocket Protocol](https://docs.goclaw.sh/#websocket): Frame types, authentication, methods, events
+
+## Full Documentation
+
+- [llms-full.txt](https://docs.goclaw.sh/llms-full.txt): Complete documentation in a single file for LLM consumption
+
+## Raw Markdown
+
+All documentation is available as raw markdown files:
+
+- [Getting Started](https://docs.goclaw.sh/docs/getting-started.md)
+- [Architecture Overview](https://docs.goclaw.sh/docs/00-architecture-overview.md)
+- [Agent Loop](https://docs.goclaw.sh/docs/01-agent-loop.md)
+- [LLM Providers](https://docs.goclaw.sh/docs/02-providers.md)
+- [Tools System](https://docs.goclaw.sh/docs/03-tools-system.md)
+- [Gateway & Protocol](https://docs.goclaw.sh/docs/04-gateway-protocol.md)
+- [Channels & Messaging](https://docs.goclaw.sh/docs/05-channels-messaging.md)
+- [Store & Data Model](https://docs.goclaw.sh/docs/06-store-data-model.md)
+- [Bootstrap, Skills & Memory](https://docs.goclaw.sh/docs/07-bootstrap-skills-memory.md)
+- [Scheduling & Cron](https://docs.goclaw.sh/docs/08-scheduling-cron-heartbeat.md)
+- [Security](https://docs.goclaw.sh/docs/09-security.md)
+- [Tracing & Observability](https://docs.goclaw.sh/docs/10-tracing-observability.md)
+- [Web Dashboard](https://docs.goclaw.sh/docs/11-web-dashboard.md)
+- [API Reference](https://docs.goclaw.sh/docs/api-reference.md)
+- [WebSocket Protocol](https://docs.goclaw.sh/docs/websocket-protocol.md)

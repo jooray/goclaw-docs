@@ -1,0 +1,12 @@
+{
+  "name": "goclaw-docs",
+  "version": "1.0.0",
+  "description": "GoClaw documentation site — Enterprise AI Agent Platform",
+  "scripts": {
+    "dev": "npx wrangler pages dev ./",
+    "deploy": "npx wrangler pages deploy ./",
+    "build:llms": "node build-llms.js"
+  },
+  "keywords": ["goclaw", "documentation", "ai-agent", "enterprise"],
+  "license": "MIT"
+}

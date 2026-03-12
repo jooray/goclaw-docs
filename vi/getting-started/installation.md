@@ -22,7 +22,7 @@ Cài GoClaw trực tiếp trên máy. Bạn tự quản lý Go, PostgreSQL và b
 
 ### Bước 1: Cài PostgreSQL + pgvector
 
-GoClaw yêu cầu **PostgreSQL 15+** với extension **pgvector** (dùng cho tìm kiếm vector trong memory và skills).
+GoClaw yêu cầu **PostgreSQL 15+** với extension **pgvector** (dùng cho tìm kiếm vector trong memory và skills). Triển khai qua Docker sử dụng **PostgreSQL 18** với pgvector (image `pgvector/pgvector:pg18`).
 
 <details>
 <summary><strong>Ubuntu 24.04+ / Debian 12+</strong></summary>
@@ -98,8 +98,8 @@ go build -o goclaw .
 ```bash
 go build -tags otel -o goclaw .              # OpenTelemetry tracing
 go build -tags tsnet -o goclaw .             # Tailscale networking
-go build -tags sandbox -o goclaw .           # Code execution sandbox
-go build -tags "otel,tsnet,sandbox" -o goclaw .  # Kết hợp nhiều tag
+go build -tags redis -o goclaw .             # Redis caching
+go build -tags "otel,tsnet" -o goclaw .      # Kết hợp nhiều tag
 ```
 
 ### Bước 3: Chạy wizard thiết lập

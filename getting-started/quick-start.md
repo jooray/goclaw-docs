@@ -75,6 +75,25 @@ websocat ws://localhost:18790/ws
 {"type":"req","id":"2","method":"chat.send","params":{"agentId":"your-agent-key","message":"Hello! What can you do?"}}
 ```
 
+> **Tip:** If you omit `agentId`, GoClaw uses the `default` agent.
+
+**Response:**
+
+```json
+{
+  "type": "res",
+  "id": "2",
+  "ok": true,
+  "payload": {
+    "runId": "uuid-string",
+    "content": "Hello! How can I help you today?",
+    "usage": { "input_tokens": 150, "output_tokens": 25 }
+  }
+}
+```
+
+The `media` field appears in the payload only when the agent returns generated media files.
+
 ## Common Issues
 
 | Problem | Solution |

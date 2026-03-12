@@ -15,13 +15,13 @@ GoClaw là phiên bản đa tenant được phát triển từ OpenClaw. Nếu b
 | Đa tenant | Không (single user) | Có (cách ly per-user) |
 | Agent team | Sub-agent delegation | Cộng tác team đầy đủ (task board chung, delegation) |
 | Lưu trữ thông tin xác thực | Plain text trong config | Mã hóa AES-256-GCM trong DB |
-| Memory | SQLite + QMD semantic search | PostgreSQL với hybrid search |
+| Memory | SQLite + QMD semantic search | PostgreSQL + SQLite (FTS5 hybrid search) |
 | Tracing | Không | Đầy đủ LLM call trace với theo dõi chi phí |
 | Hỗ trợ MCP | Có (qua mcporter bridge) | Có (stdio, SSE, streamable-http) |
 | Custom tool | Có (52+ built-in skill) | Có (định nghĩa qua dashboard hoặc API) |
 | Code sandbox | Có (Docker-based) | Có (Docker-based với per-agent config) |
 | Database | SQLite | PostgreSQL (managed mode) |
-| Channel | 18 (9 core + 9 extension) | 7 (Telegram, Discord, Slack, WhatsApp, Zalo OA, Zalo Personal, Larksuite) |
+| Channel | 18 (9 core + 9 extension) | 7 (Telegram, Discord, Slack, WhatsApp, Zalo OA, Zalo Personal, Feishu) |
 | Dashboard | Web UI cơ bản | Management dashboard đầy đủ |
 
 ## Bảng so sánh Config
@@ -83,9 +83,18 @@ Context file bổ sung cho tính năng nâng cao:
 | `MEMORY.md` | Memory dài hạn được chọn lọc |
 | `DELEGATION.md` | Hướng dẫn delegation cho sub-agent |
 | `TEAM.md` | Quy tắc phối hợp team |
-| `AVAILABILITY.md` | Lịch hoạt động của agent |
+
+GoClaw hỗ trợ context files ở cả cấp agent (dùng chung) và cấp user (ghi đè). Tên file liệt kê là quy ước, không bắt buộc.
 
 **Điểm khác biệt quan trọng:** OpenClaw lưu các file này trên filesystem. GoClaw lưu trong PostgreSQL với phạm vi per-user — mỗi người dùng có thể có phiên bản context file riêng cho cùng một agent.
+
+## Những gì được chuyển (và những gì không)
+
+| Được chuyển | Không được chuyển |
+|-------------|------------------|
+| Cấu hình agent (provider, model, tools) | Lịch sử tin nhắn (bắt đầu mới) |
+| Context file (upload thủ công) | Trạng thái session |
+| Channel token (qua biến môi trường) | Hồ sơ người dùng (tạo lại lần đăng nhập đầu) |
 
 ## Các bước chuyển đổi
 

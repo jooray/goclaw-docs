@@ -20,7 +20,7 @@ Install GoClaw directly on your machine. You manage Go, PostgreSQL, and the bina
 
 ### Step 1: Install PostgreSQL + pgvector
 
-GoClaw requires **PostgreSQL 15+** with the **pgvector** extension (for vector similarity search in memory and skills).
+GoClaw requires **PostgreSQL 15+** with the **pgvector** extension (for vector similarity search in memory and skills). Docker deployments use **PostgreSQL 18** with pgvector (`pgvector/pgvector:pg18` image).
 
 <details>
 <summary><strong>Ubuntu 24.04+ / Debian 12+</strong></summary>
@@ -96,8 +96,8 @@ go build -o goclaw .
 ```bash
 go build -tags otel -o goclaw .              # OpenTelemetry tracing
 go build -tags tsnet -o goclaw .             # Tailscale networking
-go build -tags sandbox -o goclaw .           # Code execution sandbox
-go build -tags "otel,tsnet,sandbox" -o goclaw .  # Combine multiple
+go build -tags redis -o goclaw .             # Redis caching
+go build -tags "otel,tsnet" -o goclaw .      # Combine multiple
 ```
 
 ### Step 3: Run Setup Wizard

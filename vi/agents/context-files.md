@@ -15,8 +15,9 @@ Mỗi agent load các context file xác định cách nó suy nghĩ và hành đ
 | **AGENTS.md** | Hướng dẫn vận hành & phong cách trò chuyện | Dùng chung | Theo user | Cấp agent | Không |
 | **SOUL.md** | Personality, giọng điệu, ranh giới, chuyên môn | Theo user | Theo user | Cấp agent | Không |
 | **IDENTITY.md** | Tên, loại sinh vật, emoji, vibe | Theo user | Theo user | Cấp agent | Không |
-| **TOOLS.md** | Ghi chú tool cục bộ (tên camera, SSH host) | Theo user | Theo user | Cấp agent | Không |
+| **TOOLS.md** | Ghi chú tool cục bộ (tên camera, SSH host) | Theo user | Không seeded (load từ workspace lúc runtime) | Cấp agent | Không |
 | **USER.md** | Về người dùng | Theo user | Theo user | Theo user | Không |
+| **USER_PREDEFINED.md** | Quy tắc xử lý user cơ bản | Cấp agent | Không có | Cấp agent | Không |
 | **BOOTSTRAP.md** | Nghi lễ lần đầu (xoá khi hoàn thành) | Theo user | Theo user | Theo user | Có |
 | **MEMORY.md** | Bộ nhớ dài hạn được chắt lọc | Theo user | Theo user | Theo user | Không |
 
@@ -157,7 +158,7 @@ _(Kiến thức chuyên môn đặt ở đây: coding standards, image generatio
 - phone → Personal iPhone 14 Pro
 ```
 
-**Open agent:** Theo user (dành riêng cho môi trường)
+**Open agent:** Không seeded — nếu bạn tạo `TOOLS.md` trong thư mục workspace, nó sẽ được load tự động lúc runtime.
 **Predefined agent:** Cấp agent (ghi chú dùng chung về tool chung)
 
 ### USER.md
@@ -257,6 +258,8 @@ write_file("BOOTSTRAP.md", "")
 **Open agent:** Theo user (duy trì qua các session)
 **Predefined agent:** Theo user (nếu user điền vào)
 
+> **Lưu ý:** Hệ thống tìm `MEMORY.md` trước, sau đó fallback sang `memory.md` (chữ thường). Cả hai tên file đều hoạt động.
+
 ## Thứ tự load file
 
 Các file được load theo thứ tự này và ghép nối vào system prompt:
@@ -271,6 +274,8 @@ Các file được load theo thứ tự này và ghép nối vào system prompt:
 
 Subagent và cron session chỉ load: AGENTS.md, TOOLS.md (context tối thiểu).
 
+> **Inject persona:** SOUL.md và IDENTITY.md được inject **hai lần** trong system prompt — một lần ở đầu (primacy zone) để thiết lập danh tính, và một lần ở cuối (recency zone) như một lời nhắc ngắn để tránh persona drift trong các cuộc trò chuyện dài.
+
 ## Ví dụ
 
 ### Luồng Bootstrap Open Agent
@@ -282,9 +287,9 @@ User mới bắt đầu chat với `researcher` (open agent):
    AGENTS.md → "How you operate" (mặc định)
    SOUL.md → "Be helpful, have opinions" (mặc định)
    IDENTITY.md → trống (chờ user điền)
-   TOOLS.md → trống
    USER.md → trống
    BOOTSTRAP.md → nghi lễ "Who am I?"
+   TOOLS.md → không seeded (tạo thủ công trong workspace nếu cần)
    ```
 
 2. Agent khởi đầu cuộc trò chuyện bootstrap:

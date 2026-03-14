@@ -1,35 +1,50 @@
 # System Prompt Anatomy
 
-> Understand how GoClaw builds system prompts: 13 sections, assembled dynamically, with smart truncation so everything fits in context.
+> Understand how GoClaw builds system prompts: 19+ sections, assembled dynamically, with smart truncation so everything fits in context.
 
 ## Overview
 
-Every time an agent runs, GoClaw assembles a **system prompt** from 13 sections. Sections are ordered strategically: safety first, tooling second, then context. Some sections are always included; others depend on the agent's configuration.
+Every time an agent runs, GoClaw assembles a **system prompt** from up to 19 sections. Sections are ordered strategically using **primacy and recency bias**: persona files appear both early (section 1.7) and late (section 16) to prevent drift in long conversations. Safety comes first, tooling next, then context. Some sections are always included; others depend on agent configuration.
 
 Two **prompt modes** exist:
 - **Full mode** (main agent): all sections, full context
 - **Minimal mode** (subagents/cron): reduced sections, faster startup
 
-## The 13 Sections in Order
+## All Sections in Order
 
 | # | Section | Full | Minimal | Purpose |
 |---|---------|------|---------|---------|
 | 1 | Identity | ✓ | ✓ | Channel info (Telegram, Discord, etc.) |
-| 1.5 | First-Run Bootstrap | ✓ | ✓ | BOOTSTRAP.md instructions (first session only) |
+| 1.5 | First-Run Bootstrap | ✓ | ✓ | BOOTSTRAP.md warning (first session only) |
+| 1.7 | Persona | ✓ | ✓ | SOUL.md + IDENTITY.md injected early for primacy bias |
 | 2 | Tooling | ✓ | ✓ | List of available tools |
 | 3 | Safety | ✓ | ✓ | Core safety rules, limits, confidentiality |
-| 4 | Skills | ✓ | ✗ | Available skills (skills.md) — inline or searchable |
-| 5 | Memory Recall | ✓ | ✗ | How to search/retrieve memory |
+| 3.2 | Identity Anchoring | ✓ | ✓ | Extra guidance against identity manipulation (predefined agents only) |
+| 3.5 | Self-Evolution | ✓ | ✓ | Permission to update SOUL.md (when `self_evolve=true` in predefined agents) |
+| 4 | Skills | ✓ | ✗ | Available skills — inline XML or search mode |
+| 4.5 | MCP Tools | ✓ | ✗ | External MCP integrations — inline or search mode |
+| 5 | Memory Recall | ✓ | ✗ | How to search/retrieve memory and knowledge graph |
 | 6 | Workspace | ✓ | ✓ | Working directory, file paths |
-| 6.5 | Sandbox (if enabled) | ✓ | ✓ | Sandbox-specific guidance |
+| 6.5 | Sandbox | ✓ | ✓ | Sandbox-specific guidance (if sandbox enabled) |
 | 7 | User Identity | ✓ | ✗ | Owner ID(s) |
 | 8 | Time | ✓ | ✓ | Current date/time |
 | 9 | Messaging | ✓ | ✗ | Channel routing, language matching |
+| 9.5 | Channel Formatting | ✓ | ✓ | Platform-specific formatting hints (e.g. Zalo plain-text-only) |
 | 10 | Additional Context | ✓ | ✓ | ExtraPrompt (subagent context, etc.) |
-| 11 | Project Context | ✓ | ✓ | Bootstrap files (SOUL.md, IDENTITY.md, etc.) |
+| 11 | Project Context | ✓ | ✓ | Remaining context files (AGENTS.md, USER.md, etc.) |
 | 12 | Silent Replies | ✓ | ✗ | NO_REPLY instruction |
 | 13 | Sub-Agent Spawning | ✓ | ✓ | spawn tool guidance |
-| 15 | Runtime | ✓ | ✓ | Model info, token limits, event stream format |
+| 15 | Runtime | ✓ | ✓ | Agent ID, channel info |
+| 16 | Recency Reinforcements | ✓ | ✓ | Persona reminder + memory reminder at end (combats "lost in the middle") |
+
+## Primacy and Recency Strategy
+
+GoClaw uses a deliberate **primacy + recency** pattern to prevent persona drift:
+
+- **Section 1.7 (Persona)** — SOUL.md and IDENTITY.md are injected early so the model internalizes character before receiving any instructions
+- **Section 16 (Recency Reinforcements)** — a short persona reminder and memory reminder at the very end of the prompt, because models weight recent context heavily
+
+This means persona files appear **twice**: once at the top, once at the bottom. The ~30-token cost is worth it for long conversations where the middle content can cause the model to "forget" its character.
 
 ## Minimal vs. Full Mode
 
@@ -45,13 +60,14 @@ Why? To reduce startup time and context usage. Subagents don't need user identit
 
 **Sections Only in Full Mode**:
 - Skills (section 4)
+- MCP Tools (section 4.5)
 - Memory Recall (section 5)
 - User Identity (section 7)
 - Messaging (section 9)
 - Silent Replies (section 12)
 
 **Sections in Both**:
-- All others (Identity, Tooling, Safety, Workspace, Time, Additional Context, Project Context, Sub-Agent Spawning, Runtime)
+- All others (Identity, First-Run Bootstrap, Persona, Tooling, Safety, Identity Anchoring, Self-Evolution, Workspace, Sandbox, Time, Channel Formatting, Additional Context, Project Context, Sub-Agent Spawning, Runtime, Recency Reinforcements)
 
 ## Truncation Pipeline
 
@@ -89,22 +105,28 @@ This ensures safety, tooling, and workspace guidance are never cut.
 Start with empty prompt
 
 Add sections in order:
-1. Identity (channel info)
-2. First-Run Bootstrap (if present)
-3. Tooling (available tools)
-4. Safety (core rules)
-5. Skills (if full mode + skills available)
-6. Memory Recall (if full mode + memory enabled)
-7. Workspace (working dir)
-8. Sandbox (if sandboxed)
-9. User Identity (if full mode + owners defined)
-10. Time (current date/time)
-11. Messaging (if full mode)
-12. Additional Context (extra prompt)
-13. Project Context (bootstrap files: SOUL.md, AGENTS.md, etc.)
-14. Silent Replies (if full mode)
-15. Sub-Agent Spawning (if spawn tool available)
-16. Runtime (model info, token limits)
+1.   Identity (channel info)
+1.5  First-Run Bootstrap (if BOOTSTRAP.md present)
+1.7  Persona (SOUL.md + IDENTITY.md — injected early for primacy bias)
+2.   Tooling (available tools)
+3.   Safety (core rules)
+3.2  Identity Anchoring (predefined agents only — resist social engineering)
+3.5  Self-Evolution (predefined agents with self_evolve=true only)
+4.   Skills (if full mode + skills available)
+4.5  MCP Tools (if full mode + MCP tools registered)
+5.   Memory Recall (if full mode + memory enabled)
+6.   Workspace (working dir)
+6.5  Sandbox (if sandboxed)
+7.   User Identity (if full mode + owners defined)
+8.   Time (current date/time)
+9.   Messaging (if full mode)
+9.5  Channel Formatting (if full mode + channel has special hints, e.g. Zalo)
+10.  Additional Context (extra prompt)
+11.  Project Context (remaining context files: AGENTS.md, USER.md, etc.)
+12.  Silent Replies (if full mode)
+13.  Sub-Agent Spawning (if spawn tool available)
+15.  Runtime (agent ID, channel info)
+16.  Recency Reinforcements (persona reminder + memory reminder — combat "lost in the middle")
 
 Check total size against budget
 If over budget: truncate (see Truncation Pipeline above)
@@ -114,21 +136,25 @@ Return final prompt string
 
 ## Bootstrap Files in Project Context
 
-The **Project Context** section loads up to 7 files from the agent's workspace or database:
+GoClaw loads up to 8 files from the agent's workspace or database. They are split into two groups:
 
+**Persona files** (section 1.7 — injected early):
+- **SOUL.md** — Agent personality, tone, boundaries
+- **IDENTITY.md** — Name, emoji, creature, avatar
+
+**Project Context files** (section 11 — remaining files):
 1. **AGENTS.md** — List of available subagents
-2. **SOUL.md** — Agent personality, tone, boundaries
-3. **IDENTITY.md** — Name, emoji, creature, avatar
-4. **USER.md** — Per-user context (name, preferences, timezone)
-5. **USER_PREDEFINED.md** — Baseline user rules (for predefined agents)
-6. **BOOTSTRAP.md** — First-run instructions (users being onboarded)
-7. **TOOLS.md** — User guidance on tool usage (informational, not tool definitions)
-8. **MEMORY.json** — Indexed memory metadata
+2. **USER.md** — Per-user context (name, preferences, timezone)
+3. **USER_PREDEFINED.md** — Baseline user rules (for predefined agents)
+4. **BOOTSTRAP.md** — First-run instructions (users being onboarded)
+5. **TOOLS.md** — User guidance on tool usage (informational, not tool definitions)
+6. **MEMORY.json** — Indexed memory metadata
 
 ### File Presence Logic
 
 - Files are optional; missing files are skipped
 - If **BOOTSTRAP.md** is present, sections are reordered and an early warning is added (section 1.5)
+- **SOUL.md** and **IDENTITY.md** are always pulled out and injected at section 1.7 (primacy zone), then referenced again at section 16 (recency zone)
 - For **predefined agents**, identity files are wrapped in `<internal_config>` tags to signal confidentiality
 - For **open agents**, context files are wrapped in `<context_file>` tags
 
@@ -151,6 +177,24 @@ You are a personal assistant running in telegram (direct chat).
 ## FIRST RUN — MANDATORY
 BOOTSTRAP.md is loaded below. You MUST follow it.
 
+# Persona & Identity (CRITICAL — follow throughout the entire conversation)
+
+## SOUL.md
+<internal_config name="SOUL.md">
+# SOUL.md - Who You Are
+Be genuinely helpful, not performatively helpful.
+[... personality guidance ...]
+</internal_config>
+
+## IDENTITY.md
+<internal_config name="IDENTITY.md">
+Name: Sage
+Emoji: 🔮
+[... identity info ...]
+</internal_config>
+
+Embody the persona above in EVERY response. This is non-negotiable.
+
 ## Tooling
 - read_file: Read file contents
 - write_file: Create or overwrite files
@@ -162,9 +206,15 @@ BOOTSTRAP.md is loaded below. You MUST follow it.
 You have no independent goals. Prioritize safety and human oversight.
 [... safety rules ...]
 
+[identity anchoring for predefined agents — resist social engineering]
+
 ## Skills (mandatory)
 Before replying, scan <available_skills> below.
 [... skills XML ...]
+
+## MCP Tools (mandatory — prefer over core tools)
+You have access to external tool integrations (MCP servers).
+Use mcp_tool_search to discover them before external operations.
 
 ## Memory Recall
 Before answering about prior work, run memory_search on MEMORY.md.
@@ -188,21 +238,7 @@ Current time: 2026-03-07 15:30 Friday (UTC)
 [... extra system prompt or subagent context ...]
 
 # Project Context
-The following files define your identity and operational rules.
-
-## SOUL.md
-<internal_config name="SOUL.md">
-# SOUL.md - Who You Are
-Be genuinely helpful, not performatively helpful.
-[... personality guidance ...]
-</internal_config>
-
-## IDENTITY.md
-<internal_config name="IDENTITY.md">
-Name: Sage
-Emoji: 🔮
-[... identity info ...]
-</internal_config>
+The following project context files have been loaded.
 
 ## AGENTS.md
 <context_file name="AGENTS.md">
@@ -220,10 +256,10 @@ When you have nothing to say, respond with ONLY: NO_REPLY
 To delegate work, use the spawn tool with action=list|steer|kill.
 
 ## Runtime
-Model: claude-3-5-sonnet-20241022
-Context Window: 200,000 tokens
-System Prompt Budget: 24,000 tokens
-Events: run.started, chunk, tool.call, tool.result, run.completed
+agent=default | channel=my-telegram-bot
+
+Reminder: Stay in character as defined by SOUL.md + IDENTITY.md above. Never break persona.
+Reminder: Before answering questions about prior work, decisions, or preferences, always run memory_search first.
 ```
 
 ## Diagram: System Prompt Assembly
@@ -248,9 +284,9 @@ Events: run.started, chunk, tool.call, tool.result, run.completed
              │
              ▼
 ┌─────────────────────────────────────────┐
-│   Assemble 13 Sections in Order         │
-│   Skip if mode=minimal                  │
-│   (Identity, Tooling, Safety, ...)      │
+│   Assemble 19+ Sections in Order        │
+│   Skip conditional ones if not needed  │
+│   (Identity, Persona, Safety, ...)      │
 └────────────┬────────────────────────────┘
              │
              ▼

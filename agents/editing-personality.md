@@ -4,10 +4,12 @@
 
 ## Overview
 
-Your agent's personality emerges from two configuration files:
+Your agent's personality emerges from two primary configuration files:
 
 - **SOUL.md**: Defines tone, values, boundaries, expertise, and operational style. This is the "who you are" file.
 - **IDENTITY.md**: Contains metadata like name, emoji, creature type, and avatar. This is the "what you look like" file.
+
+**AGENTS.md** also contributes to the overall persona — it defines conversational rules, memory usage, and group chat behavior. While less about "personality," it shapes how the agent expresses itself in practice. See [Context Files](./context-files.md) for details.
 
 You can edit these files three ways: via the Dashboard UI, the WebSocket API, or directly on disk (in managed mode, edits are stored in the database).
 
@@ -126,9 +128,11 @@ IDENTITY.md stores the facts about who your agent *is*:
 | **Name** | Display name in UI | "Sage" or "Claude Companion" |
 | **Creature** | What kind of being is the agent | "AI familiar" or "digital assistant" |
 | **Purpose** | What the agent does | "Your research partner for coding projects" |
-| **Vibe** | Personality descriptor | "thoughtful and patient" |
+| **Vibe** | Personality descriptor (template only — not parsed by the system) | "thoughtful and patient" |
 | **Emoji** | Badge in UI/messages | "🔮" or "🤖" |
 | **Avatar** | Profile picture URL or path | "https://example.com/sage.png" or "avatars/sage.png" |
+
+> **Note on parsed fields:** The system only extracts **Name**, **Emoji**, **Avatar**, and **Description** from IDENTITY.md. The `Vibe`, `Creature`, and `Purpose` fields are part of the template for the agent's own reference — they shape how the agent understands itself in the system prompt, but are not parsed by GoClaw for display purposes.
 
 ### Editing IDENTITY.md
 

@@ -1,16 +1,24 @@
 # User Overrides
 
-> Let individual users change the LLM provider or model for an agent without affecting others. Perfect for "I prefer GPT-4o" or "Use my custom API key."
+> **Partially implemented feature.** The database schema and store API exist, but overrides are not yet applied at runtime. This page documents the planned behavior and current store API.
+
+---
+
+> **Warning:** User overrides are **not applied during agent execution**. The `GetUserOverride()` store method exists but is not called in the agent execution path. Setting an override has no effect on which LLM is used until this feature is fully integrated.
+
+---
 
 ## Overview
 
-By default, every user runs an agent with the same provider and model. But what if Alice prefers Claude while Bob wants GPT-4? That's where user overrides come in.
+The intent of user overrides is to let individual users change the LLM provider or model for an agent without affecting others. For example: Alice prefers GPT-4o while Bob stays on Claude.
 
-A **user override** is a per-user, per-agent setting that says: "When *this user* runs *this agent*, use *this provider/model* instead of the agent's defaults."
+A **user override** would be a per-user, per-agent setting that says: "When *this user* runs *this agent*, use *this provider/model* instead of the agent's defaults."
+
+**Current status:** Schema and store methods are implemented. Runtime integration is pending.
 
 ## The user_agent_overrides Table
 
-When a user sets an override, it's stored here:
+The schema exists and stores overrides:
 
 ```sql
 CREATE TABLE user_agent_overrides (
@@ -28,36 +36,31 @@ CREATE TABLE user_agent_overrides (
 - **provider**: The LLM provider (must be configured in the gateway)
 - **model**: The model name within that provider
 
-## The Precedence Chain
+## Planned Precedence Chain
 
-When a user runs an agent, GoClaw picks the LLM in this order:
+> **Note:** This precedence chain is the planned behavior. It is not currently implemented — the runtime always uses the agent's configured provider/model.
 
 ```
 1. User override exists?
-   → Yes: use provider + model from user_agent_overrides
+   → Yes: use provider + model from user_agent_overrides  [PLANNED — not implemented]
    → No: proceed to step 2
 
 2. Agent config has provider + model?
-   → Yes: use agent's defaults
+   → Yes: use agent's defaults  [ACTIVE]
    → No: proceed to step 3
 
 3. Global default provider + model?
-   → Yes: use global default
+   → Yes: use global default  [ACTIVE]
    → No: error (no LLM configured)
 ```
 
-**Example**:
-- Agent "research-bot" defaults to Claude 3.5 Sonnet
-- Alice sets override: GPT-4o
-- When Alice runs research-bot: GPT-4o is used (her override wins)
-- When Bob runs research-bot: Claude 3.5 Sonnet (no override, uses agent default)
+## Store API (Available Now)
 
-## Setting an Override
+The store methods are implemented and usable directly:
 
-### Via API
+### Setting an Override
 
 ```go
-// Go example
 override := &store.UserAgentOverrideData{
   AgentID:  agentID,
   UserID:   "alice@example.com",
@@ -67,9 +70,29 @@ override := &store.UserAgentOverrideData{
 err := agentStore.SetUserOverride(ctx, override)
 ```
 
-### Via WebSocket RPC
+### Getting an Override
 
-Exact method name depends on your gateway. Example:
+```go
+override, err := agentStore.GetUserOverride(ctx, agentID, userID)
+if override != nil {
+  // override.Provider, override.Model are available
+} else {
+  // no override stored
+}
+```
+
+### Deleting an Override
+
+> **Note:** `DeleteUserOverride()` is defined in the store interface but not yet implemented in the PostgreSQL store. Calling it will return an error or no-op depending on the build.
+
+```go
+// Planned — not yet implemented in pg store:
+err := agentStore.DeleteUserOverride(ctx, agentID, userID)
+```
+
+## WebSocket RPC — Planned
+
+> **Note:** No WebSocket RPC methods for user overrides exist yet. The following is the planned interface:
 
 ```json
 {
@@ -83,78 +106,28 @@ Exact method name depends on your gateway. Example:
 }
 ```
 
-**Response**:
-```json
-{
-  "ok": true,
-  "override": {
-    "agentId": "research-bot",
-    "userId": "alice@example.com",
-    "provider": "openai",
-    "model": "gpt-4o"
-  }
-}
-```
+This method does not currently exist in the gateway.
 
-## Getting an Override
+## Dashboard User Settings — Planned
 
-Check if a user has an override configured:
+The Dashboard **Agent Preferences** UI for managing overrides is planned but not yet available.
 
-```go
-override, err := agentStore.GetUserOverride(ctx, agentID, userID)
-if override != nil {
-  // User has an override: provider, model
-} else {
-  // No override; agent defaults apply
-}
-```
+## Use Cases (Planned)
 
-## Dashboard User Settings
-
-The Dashboard typically has a **User Settings** or **Agent Preferences** page:
-
-1. Log in as a user
-2. Go to **Settings** → **Agent Preferences**
-3. For each agent you use:
-   - Toggle "Override provider/model"
-   - Select a provider (if multiple are configured)
-   - Select a model
-4. Click **Save**
-
-Changes take effect on the next run.
-
-## Use Cases
+These use cases describe the intended behavior once runtime integration is complete.
 
 ### Case 1: Cost Control
 - Agent defaults to expensive GPT-4 for best quality
 - Users on a budget can override to Claude 3 Haiku for cheaper runs
-- Owner still controls the default for new agents
 
 ### Case 2: Personal Preference
 - Research team prefers Claude for analysis
 - Marketing team prefers GPT-4 for copy
 - Single agent, two teams, two configurations
 
-### Case 3: Custom API Keys
-- Organization uses shared API key in agent config
-- Alice has her own OpenAI key, wants to use it
-- Override lets her use her key without affecting others
-
-### Case 4: Feature Testing
-- Team wants to test new Claude model (claude-3-7-opus) on one agent
-- Don't want to change the agent's default yet
+### Case 3: Feature Testing
+- Team wants to test a new model on one agent
 - Opt-in users set override; others stay on stable version
-
-## Clearing an Override
-
-To go back to agent defaults, delete the override:
-
-```go
-// No direct delete method shown in source, but typically:
-err := agentStore.DeleteUserOverride(ctx, agentID, userID)
-```
-
-Or in the Dashboard: toggle off "Override provider/model" and save.
 
 ## Supported Providers & Models
 
@@ -168,28 +141,8 @@ Check your gateway config to see which providers/models are available. Common on
 
 Ask your admin if you're unsure which are enabled.
 
-## Best Practices
-
-| Practice | Why |
-|----------|-----|
-| **Set agent defaults sensibly** | Most users won't override; defaults matter |
-| **Let power users override** | They know their needs; give them control |
-| **Document which models fit which tasks** | Claude > analysis, GPT-4 > creative, Haiku > cheap |
-| **Don't require overrides** | Should be optional, not mandatory |
-| **Test overrides in non-prod** | Verify new model works before going live |
-
-## Common Issues
-
-| Problem | Solution |
-|---------|----------|
-| Override isn't taking effect | Wait for a new session start; cached agent config might be stale |
-| Model not in the list | Admin hasn't configured it; ask your admin to enable it |
-| User wants to override but can't find the setting | Check Dashboard → Settings → Agent Preferences; may be under a different name |
-| Override cost more than expected | Verify the model; some models are more expensive than others |
-| Can't clear override | Delete it via API or Dashboard; "no override" means use agent defaults |
-
 ## What's Next
 
 - [System Prompt Anatomy — How model choice affects system prompt size](system-prompt-anatomy.md)
-- [Sharing and Access — Control who can set overrides (via role-based permissions)](sharing-and-access.md)
+- [Sharing and Access — Control who can access agents](sharing-and-access.md)
 - [Creating Agents — Set default provider/model when creating an agent](creating-agents.md)

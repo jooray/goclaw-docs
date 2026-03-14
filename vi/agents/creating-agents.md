@@ -8,6 +8,18 @@
 
 Bạn có thể tạo agent theo ba cách: dùng wizard tương tác trên CLI, qua web dashboard, hoặc gọi HTTP trực tiếp. Mỗi agent cần một key duy nhất, tên hiển thị, LLM provider, và model. Các trường tuỳ chọn bao gồm context window, số lần tool iteration tối đa, vị trí workspace, và cấu hình tool.
 
+## Vòng đời trạng thái Agent
+
+Khi predefined agent có mô tả được tạo ra, nó sẽ qua các trạng thái sau:
+
+| Trạng thái | Mô tả |
+|--------|-------------|
+| `summoning` | LLM đang tạo file personality (SOUL.md, IDENTITY.md, USER_PREDEFINED.md) |
+| `active` | Agent sẵn sàng sử dụng |
+| `summon_failed` | Tạo LLM thất bại; dùng template file làm fallback |
+
+Open agent được tạo với trạng thái `active` ngay lập tức — không có bước summoning.
+
 ## CLI: Wizard tương tác
 
 Cách đơn giản nhất để bắt đầu:
@@ -102,6 +114,8 @@ curl -X POST http://localhost:8080/v1/agents \
 | `workspace` | string | `~/.goclaw/{key}-workspace` | Thư mục chứa context file |
 | `other_config` | JSON | `{}` | Trường tuỳ chỉnh (ví dụ: `description` để kích hoạt summoning) |
 
+> **Trường frontmatter:** Sau summoning, GoClaw lưu một tóm tắt chuyên môn ngắn (trích xuất tự động từ SOUL.md) vào trường `frontmatter` của agent. Trường này dùng cho agent discovery và delegation — bạn không cần đặt trực tiếp.
+
 ## Ví dụ
 
 ### CLI: Thêm Research Agent
@@ -145,7 +159,11 @@ curl -X POST http://localhost:8080/v1/agents \
   }'
 ```
 
-Hệ thống sẽ kích hoạt summoning bằng LLM ở nền để tạo ra các file personality. Theo dõi trạng thái agent để biết khi nào nó chuyển từ `summoning` sang `active`.
+Hệ thống sẽ kích hoạt summoning bằng LLM ở nền để tạo ra các file personality. Theo dõi trạng thái agent để biết khi nào nó chuyển từ `summoning` sang `active`. Nếu summoning thất bại, trạng thái sẽ là `summon_failed` và template file được dùng làm fallback.
+
+> **Lưu ý:** Các trường `provider` và `model` trong HTTP request đặt LLM mặc định cho agent. Nếu đã cấu hình global default trong `GOCLAW_CONFIG`, các trường này có thể bị ghi đè lúc runtime. Bản thân summoning sử dụng provider/model global default trừ khi agent có cài đặt riêng.
+>
+> **Summoner service:** Summoning của predefined agent yêu cầu summoner service phải đang chạy. Nếu không, agent được tạo với trạng thái `active` dùng template file trực tiếp (không có LLM generation).
 
 ## Các vấn đề thường gặp
 

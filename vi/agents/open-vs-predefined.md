@@ -31,6 +31,7 @@ Bạn có muốn mỗi user có:
 | **USER.md** | Theo user (seeded từ template khi chat lần đầu) | Theo user (seeded từ fallback cấp agent hoặc template) |
 | **AGENTS.md** | Theo user (seeded từ template) | Theo agent (dùng chung) |
 | **TOOLS.md** | Không seeded (load runtime từ workspace nếu có) | Không seeded (bỏ qua trong `SeedToStore`) |
+| **MEMORY.md** | Theo user (lưu riêng, không thuộc seeding) | Theo user (lưu riêng, không thuộc seeding) |
 | **BOOTSTRAP.md** | Theo user (nghi lễ lần đầu, seeded từ template) | Theo user (biến thể tập trung vào user `BOOTSTRAP_PREDEFINED.md`) |
 | **USER_PREDEFINED.md** | Không có | Theo agent (quy tắc xử lý user cơ bản) |
 | **Use case** | Personal assistant, agent theo từng user | Dịch vụ dùng chung: FAQ bot, support agent, shared tool |
@@ -63,7 +64,7 @@ Khi bạn tạo predefined agent:
 
 1. **AGENTS.md, SOUL.md, IDENTITY.md** được seeded vào `agent_context_files` (USER.md và TOOLS.md bị bỏ qua — USER.md chỉ theo user, TOOLS.md load lúc runtime)
 2. **USER_PREDEFINED.md** được seeded riêng (quy tắc xử lý user cơ bản)
-3. Tuỳ chọn: "summoning" dùng LLM tạo SOUL.md, IDENTITY.md, AGENTS.md, TOOLS.md từ mô tả của bạn
+3. Tuỳ chọn: "summoning" dùng LLM tạo **SOUL.md, IDENTITY.md, USER_PREDEFINED.md** từ mô tả của bạn. AGENTS.md và TOOLS.md luôn dùng template nhúng sẵn — không được tạo bởi summoning.
 4. Tất cả user thấy cùng một personality và hướng dẫn
 
 Khi user mới bắt đầu chat:

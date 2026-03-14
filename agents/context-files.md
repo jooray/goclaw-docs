@@ -13,8 +13,9 @@ Each agent loads context files that define how it thinks and acts. These files a
 | **AGENTS.md** | Operating instructions & conversational style | Shared | Per-user | Agent-level | No |
 | **SOUL.md** | Personality, tone, boundaries, expertise | Per-user | Per-user | Agent-level | No |
 | **IDENTITY.md** | Name, creature, emoji, vibe | Per-user | Per-user | Agent-level | No |
-| **TOOLS.md** | Local tool notes (camera names, SSH hosts) | Per-user | Per-user | Agent-level | No |
+| **TOOLS.md** | Local tool notes (camera names, SSH hosts) | Per-user | Not seeded (loaded from workspace at runtime) | Agent-level | No |
 | **USER.md** | About the human user | Per-user | Per-user | Per-user | No |
+| **USER_PREDEFINED.md** | Baseline user-handling rules | Agent-level | N/A | Agent-level | No |
 | **BOOTSTRAP.md** | First-run ritual (deleted when complete) | Per-user | Per-user | Per-user | Yes |
 | **MEMORY.md** | Long-term curated memory | Per-user | Per-user | Per-user | No |
 
@@ -155,7 +156,7 @@ _(Domain-specific knowledge goes here: coding standards, image generation techni
 - phone → Personal iPhone 14 Pro
 ```
 
-**Open agent:** Per-user (environment-specific)
+**Open agent:** Not seeded — if you create a `TOOLS.md` in your workspace directory, it is loaded at runtime automatically.
 **Predefined agent:** Agent-level (shared notes about common tools)
 
 ### USER.md
@@ -255,6 +256,8 @@ write_file("BOOTSTRAP.md", "")
 **Open agent:** Per-user (persisted across sessions)
 **Predefined agent:** Per-user (if populated by user)
 
+> **Note:** The system looks for `MEMORY.md` first, then falls back to `memory.md` (lowercase). Both filenames work.
+
 ## File Loading Order
 
 Files are loaded in this order and concatenated into the system prompt:
@@ -269,6 +272,8 @@ Files are loaded in this order and concatenated into the system prompt:
 
 Subagent and cron sessions load only: AGENTS.md, TOOLS.md (minimal context).
 
+> **Persona injection:** SOUL.md and IDENTITY.md are injected **twice** in the system prompt — once early (primacy zone) to establish identity, and once at the end (recency zone) as a brief reminder to prevent persona drift in long conversations.
+
 ## Examples
 
 ### Open Agent Bootstrap Flow
@@ -280,9 +285,9 @@ New user starts a chat with `researcher` (open agent):
    AGENTS.md → "How you operate" (default)
    SOUL.md → "Be helpful, have opinions" (default)
    IDENTITY.md → blank (ready for user input)
-   TOOLS.md → blank
    USER.md → blank
    BOOTSTRAP.md → "Who am I?" ritual
+   TOOLS.md → not seeded (create manually in workspace if needed)
    ```
 
 2. Agent initiates bootstrap conversation:

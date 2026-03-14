@@ -39,9 +39,17 @@ The system:
 
 3. Polls the agent status via WebSocket events until status becomes `"active"` (or `"summon_failed"`)
 
+### Timeouts
+
+Summoning uses two timeout values:
+- **Single call timeout: 300s** — the optimistic all-in-one LLM call must complete within this window
+- **Total timeout: 600s** — overall budget across both single call and fallback sequential calls
+
+If the single call times out, the remaining budget is used for the fallback 2-call approach.
+
 ### Two-Phase LLM Generation
 
-Summoning tries an optimistic single LLM call first (300s timeout). If it times out, it falls back to sequential calls:
+Summoning tries an optimistic single LLM call first (300s timeout). If it times out, it falls back to sequential calls within the 600s total budget:
 
 **Phase 1: Generate SOUL.md**
 - Receives description + SOUL.md template
@@ -93,15 +101,26 @@ If timeout: fallback handles each phase separately.
 **USER_PREDEFINED.md** (optional):
 Generated only if description mentions owner/creator, users/groups, or communication policies. Contains baseline user-handling rules shared across all users.
 
-### Re-summoning
+### Regenerate vs. Resummon
 
-If you want to regenerate files after creation:
+These are two distinct operations — do not confuse them:
+
+| | `regenerate` | `resummon` |
+|---|---|---|
+| **Endpoint** | `POST /v1/agents/{id}/regenerate` | `POST /v1/agents/{id}/resummon` |
+| **Purpose** | Edit personality with new instructions | Retry summoning from scratch |
+| **Requires** | `"prompt"` field (required) | Original `description` in `other_config` |
+| **Use when** | You want to change the agent's personality | Initial summoning failed or produced bad results |
+
+#### Regenerate: Edit Personality
+
+Use `regenerate` when you want to modify the agent's existing files with new instructions:
 
 ```bash
-curl -X POST /v1/agents/{agent-id}/resummon \
+curl -X POST /v1/agents/{agent-id}/regenerate \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "edit_prompt": "Change the tone to more formal and technical. Add expertise in machine learning."
+    "prompt": "Change the tone to more formal and technical. Add expertise in machine learning."
   }'
 ```
 
@@ -112,7 +131,20 @@ The system:
 4. Updates display_name and frontmatter if IDENTITY.md was regenerated
 5. Sets status to `"active"` when done
 
-Files not mentioned in edit_prompt aren't sent to LLM, avoiding unnecessary regeneration.
+Files not mentioned in prompt aren't sent to LLM, avoiding unnecessary regeneration.
+
+#### Resummon: Retry from Original Description
+
+Use `resummon` when initial summoning failed (e.g. wrong model, timeout) and you want to retry from the original description:
+
+```bash
+curl -X POST /v1/agents/{agent-id}/resummon \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+No request body needed. The system re-reads the original `description` from `other_config` and runs full summoning again.
+
+> **Prerequisite:** `resummon` will fail with an error if the agent has no `description` in `other_config`. Make sure the agent was created with a description field.
 
 ## Bootstrap: First-Run Ritual for Open Agents
 
@@ -220,15 +252,15 @@ curl -X POST http://localhost:8080/v1/agents \
 - Bob has his own personality (not alice's)
 - Bob goes through bootstrap independently
 
-### Example 3: Re-summon to Change Personality
+### Example 3: Regenerate to Change Personality
 
-After summoning, you realize the agent should be more formal:
+After summoning, you realize the agent should be more formal. Use `regenerate` (not `resummon`) — you're editing personality, not retrying a failed summon:
 
 ```bash
 curl -X POST http://localhost:8080/v1/agents/{agent-id}/regenerate \
   -H "Authorization: Bearer token" \
   -d '{
-    "edit_prompt": "Make the tone formal and professional. Remove humor. Add expertise in technical support."
+    "prompt": "Make the tone formal and professional. Remove humor. Add expertise in technical support."
   }'
 ```
 
@@ -253,7 +285,10 @@ create → "active"
 predefined agent (with description):
 create → "summoning" → (LLM calls) → "active" | "summon_failed"
 
-resummon:
+regenerate (edit with prompt):
+"active" → "summoning" → (LLM calls) → "active" | "summon_failed"
+
+resummon (retry from original description):
 "active" → "summoning" → (LLM calls) → "active" | "summon_failed"
 ```
 

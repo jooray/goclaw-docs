@@ -6,6 +6,18 @@
 
 You can create agents three ways: interactively with the CLI, through the web dashboard, or programmatically via HTTP. Each agent needs a unique key, display name, LLM provider, and model. Optional fields include context window, max tool iterations, workspace location, and tools configuration.
 
+## Agent Status Lifecycle
+
+When a predefined agent with a description is created, it goes through these statuses:
+
+| Status | Description |
+|--------|-------------|
+| `summoning` | LLM is generating personality files (SOUL.md, IDENTITY.md, USER_PREDEFINED.md) |
+| `active` | Agent is ready to use |
+| `summon_failed` | LLM generation failed; template files are used as fallback |
+
+Open agents are created with `active` status immediately — no summoning step.
+
 ## CLI: Interactive Wizard
 
 The easiest way to get started:
@@ -100,6 +112,8 @@ curl -X POST http://localhost:8080/v1/agents \
 | `workspace` | string | `~/.goclaw/{key}-workspace` | Directory for context files |
 | `other_config` | JSON | `{}` | Custom fields (e.g., `description` for summoning) |
 
+> **frontmatter field:** After summoning, GoClaw stores a short expertise summary (auto-extracted from SOUL.md) in the agent's `frontmatter` field. This is used for agent discovery and delegation — it is not something you set directly.
+
 ## Examples
 
 ### CLI: Add a Research Agent
@@ -143,7 +157,11 @@ curl -X POST http://localhost:8080/v1/agents \
   }'
 ```
 
-The system will trigger background LLM summoning to generate personality files. Poll the agent status to see when it transitions from `summoning` to `active`.
+The system will trigger background LLM summoning to generate personality files. Poll the agent status to see when it transitions from `summoning` to `active`. If summoning fails, status is set to `summon_failed` and template files are kept as fallback.
+
+> **Note:** The `provider` and `model` fields in the HTTP request set the agent's default LLM. If global defaults are configured in `GOCLAW_CONFIG`, these fields may be overridden at runtime. Summoning itself uses the global default provider/model unless the agent has its own set.
+>
+> **Summoner service:** Predefined agent summoning requires the summoner service to be enabled. If it is not running, the agent is created with `active` status using template files directly (no LLM generation).
 
 ## Common Issues
 

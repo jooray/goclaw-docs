@@ -41,9 +41,17 @@ Hệ thống:
 
 3. Theo dõi trạng thái agent qua WebSocket event cho đến khi trạng thái chuyển sang `"active"` (hoặc `"summon_failed"`)
 
+### Timeout
+
+Summoning dùng hai giá trị timeout:
+- **Timeout gọi đơn: 300s** — lần gọi LLM tất cả-trong-một phải hoàn thành trong khoảng này
+- **Tổng timeout: 600s** — ngân sách tổng cho cả lần gọi đơn lẫn fallback gọi tuần tự
+
+Nếu lần gọi đơn timeout, ngân sách còn lại được dùng cho phương pháp fallback 2 lần gọi.
+
 ### Tạo LLM hai giai đoạn
 
-Summoning thử một lần gọi LLM lạc quan trước (timeout 300s). Nếu timeout, sẽ fallback sang gọi tuần tự:
+Summoning thử một lần gọi LLM lạc quan trước (timeout 300s). Nếu timeout, sẽ fallback sang gọi tuần tự trong tổng ngân sách 600s:
 
 **Giai đoạn 1: Tạo SOUL.md**
 - Nhận mô tả + template SOUL.md
@@ -95,15 +103,26 @@ Nếu timeout: fallback xử lý từng giai đoạn riêng.
 **USER_PREDEFINED.md** (tuỳ chọn):
 Chỉ tạo nếu mô tả đề cập chủ sở hữu/người tạo, user/nhóm, hoặc chính sách giao tiếp. Chứa quy tắc xử lý user cơ bản dùng chung cho tất cả user.
 
-### Re-summoning
+### Regenerate vs. Resummon
 
-Nếu bạn muốn tạo lại file sau khi tạo:
+Đây là hai thao tác riêng biệt — đừng nhầm lẫn:
+
+| | `regenerate` | `resummon` |
+|---|---|---|
+| **Endpoint** | `POST /v1/agents/{id}/regenerate` | `POST /v1/agents/{id}/resummon` |
+| **Mục đích** | Chỉnh sửa personality với hướng dẫn mới | Thử lại summoning từ đầu |
+| **Yêu cầu** | Trường `"prompt"` (bắt buộc) | `description` gốc trong `other_config` |
+| **Dùng khi** | Muốn thay đổi personality của agent | Summoning ban đầu thất bại hoặc cho kết quả kém |
+
+#### Regenerate: Chỉnh sửa Personality
+
+Dùng `regenerate` khi muốn sửa đổi file hiện tại của agent với hướng dẫn mới:
 
 ```bash
-curl -X POST /v1/agents/{agent-id}/resummon \
+curl -X POST /v1/agents/{agent-id}/regenerate \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "edit_prompt": "Change the tone to more formal and technical. Add expertise in machine learning."
+    "prompt": "Change the tone to more formal and technical. Add expertise in machine learning."
   }'
 ```
 
@@ -114,7 +133,20 @@ Hệ thống:
 4. Cập nhật display_name và frontmatter nếu IDENTITY.md được tạo lại
 5. Đặt trạng thái thành `"active"` khi xong
 
-File không được đề cập trong edit_prompt không được gửi cho LLM, tránh tạo lại không cần thiết.
+File không được đề cập trong prompt không được gửi cho LLM, tránh tạo lại không cần thiết.
+
+#### Resummon: Thử lại từ Mô tả Gốc
+
+Dùng `resummon` khi summoning ban đầu thất bại (ví dụ: sai model, timeout) và muốn thử lại từ mô tả gốc:
+
+```bash
+curl -X POST /v1/agents/{agent-id}/resummon \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Không cần body request. Hệ thống đọc lại `description` gốc từ `other_config` và chạy lại toàn bộ summoning.
+
+> **Điều kiện tiên quyết:** `resummon` sẽ thất bại nếu agent không có `description` trong `other_config`. Đảm bảo agent được tạo với trường description.
 
 ## Bootstrap: Nghi lễ lần đầu cho Open Agent
 
@@ -222,15 +254,15 @@ curl -X POST http://localhost:8080/v1/agents \
 - Bob có personality riêng (không phải của alice)
 - Bob trải qua bootstrap độc lập
 
-### Ví dụ 3: Re-summon để thay đổi Personality
+### Ví dụ 3: Regenerate để thay đổi Personality
 
-Sau khi summoning, bạn nhận ra agent nên trang trọng hơn:
+Sau khi summoning, bạn nhận ra agent nên trang trọng hơn. Dùng `regenerate` (không phải `resummon`) — bạn đang chỉnh sửa personality, không phải thử lại summon thất bại:
 
 ```bash
 curl -X POST http://localhost:8080/v1/agents/{agent-id}/regenerate \
   -H "Authorization: Bearer token" \
   -d '{
-    "edit_prompt": "Make the tone formal and professional. Remove humor. Add expertise in technical support."
+    "prompt": "Make the tone formal and professional. Remove humor. Add expertise in technical support."
   }'
 ```
 
@@ -255,7 +287,10 @@ create → "active"
 predefined agent (có mô tả):
 create → "summoning" → (LLM calls) → "active" | "summon_failed"
 
-resummon:
+regenerate (chỉnh sửa với prompt):
+"active" → "summoning" → (LLM calls) → "active" | "summon_failed"
+
+resummon (thử lại từ mô tả gốc):
 "active" → "summoning" → (LLM calls) → "active" | "summon_failed"
 ```
 

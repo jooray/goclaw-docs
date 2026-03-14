@@ -6,10 +6,12 @@
 
 ## Tổng quan
 
-Personality của agent được định hình bởi hai file cấu hình:
+Personality của agent được định hình bởi hai file cấu hình chính:
 
 - **SOUL.md**: Định nghĩa giọng điệu, giá trị, ranh giới, chuyên môn, và phong cách vận hành. Đây là file "bạn là ai".
 - **IDENTITY.md**: Chứa metadata như tên, emoji, loại sinh vật, và avatar. Đây là file "bạn trông như thế nào".
+
+**AGENTS.md** cũng đóng góp vào persona tổng thể — nó định nghĩa quy tắc trò chuyện, cách dùng bộ nhớ, và hành vi trong group chat. Dù ít liên quan đến "personality" hơn, nhưng nó ảnh hưởng đến cách agent thể hiện trong thực tế. Xem [Context Files](./context-files.md) để biết thêm chi tiết.
 
 Bạn có thể chỉnh sửa hai file này theo ba cách: qua Dashboard UI, WebSocket API, hoặc trực tiếp trên đĩa (trong managed mode, các chỉnh sửa được lưu vào database).
 
@@ -128,9 +130,11 @@ IDENTITY.md lưu thông tin về agent *là ai*:
 | **Name** | Tên hiển thị trên giao diện | "Sage" hoặc "Claude Companion" |
 | **Creature** | Agent là loại thực thể gì | "AI familiar" hoặc "digital assistant" |
 | **Purpose** | Agent làm gì | "Your research partner for coding projects" |
-| **Vibe** | Mô tả personality | "thoughtful and patient" |
+| **Vibe** | Mô tả personality (chỉ trong template — không được hệ thống parse) | "thoughtful and patient" |
 | **Emoji** | Huy hiệu trong giao diện/tin nhắn | "🔮" hoặc "🤖" |
 | **Avatar** | URL hoặc đường dẫn ảnh đại diện | "https://example.com/sage.png" hoặc "avatars/sage.png" |
+
+> **Lưu ý về các trường được parse:** Hệ thống chỉ trích xuất **Name**, **Emoji**, **Avatar**, và **Description** từ IDENTITY.md. Các trường `Vibe`, `Creature`, và `Purpose` là một phần của template để agent tự hiểu về mình trong system prompt — chúng không được GoClaw parse cho mục đích hiển thị.
 
 ### Cách chỉnh sửa IDENTITY.md
 

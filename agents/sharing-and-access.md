@@ -1,14 +1,14 @@
 # Sharing and Access Control
 
-> Control who can use your agents with granular role-based permissions: admin (full), operator (read+write), viewer (read-only).
+> Control who can use your agents. Access is enforced via owner vs. non-owner distinction; role labels are stored for future enforcement.
 
 ## Overview
 
-GoClaw's permission system ensures agents stay in the right hands. The core concept is simple:
+GoClaw's permission system ensures agents stay in the right hands. The core concept:
 
 - **Owner** owns the agent (full control, can delete, share)
 - **Default agents** are readable by all users (good for shared utilities)
-- **Shares** grant others access with a specific role
+- **Shares** grant others access with a stored role label
 
 Access is checked in a 4-step pipeline: Does the agent exist? → Is it default? → Are you the owner? → Is it shared with you?
 
@@ -21,7 +21,7 @@ CREATE TABLE agent_shares (
   id UUID PRIMARY KEY,
   agent_id UUID NOT NULL REFERENCES agents(id),
   user_id VARCHAR NOT NULL,
-  role VARCHAR NOT NULL,           -- "admin", "operator", or "viewer"
+  role VARCHAR NOT NULL,           -- stored label: "admin", "operator", "viewer", "user", etc.
   granted_by VARCHAR NOT NULL,     -- who granted this share
   created_at TIMESTAMP NOT NULL
 );
@@ -29,19 +29,36 @@ CREATE TABLE agent_shares (
 
 Each row represents one user's access to one agent.
 
-## Roles Explained
+## Roles — Stored but Not Yet Enforced
 
-| Role | Permissions | Use Case |
-|------|-------------|----------|
-| **admin** | Full control: read, write, delete, reshare, manage team | Trusted collaborator who helps manage the agent |
-| **operator** | Read + write: run the agent, edit context files, but NOT delete/reshare | Team member who uses the agent and refines settings |
-| **viewer** | Read-only: run the agent, view files, but NOT edit | Stakeholder who observes outputs only |
+> **Important:** Role labels are stored in `agent_shares` but **not currently enforced** at runtime. The only distinction enforced today is **owner vs. non-owner**. Role-based permission checks are planned for a future release.
 
-### Practical Examples
+| Role | Planned Permissions | Status |
+|------|---------------------|--------|
+| **admin** | Full control: read, write, delete, reshare, manage team | Planned |
+| **operator** | Read + write: run agent, edit context files, but NOT delete/reshare | Planned |
+| **viewer** | Read-only: run agent, view files, but NOT edit | Planned |
+| **user** | Basic access (default when no role specified) | Stored only |
 
-- **Owner** builds a research agent. Grants **admin** to an assistant who helps tune prompts.
-- **Owner** builds a customer service bot. Grants **operator** to support team (they can tweak tone), **viewer** to manager (sees outputs only).
-- **Owner** creates a public utility agent and marks it **default**, so all users can use it without explicit shares.
+**What IS enforced today:**
+- Owner can share, revoke, and list shares; non-owners cannot
+- Any user with a share row can access the agent (regardless of role value)
+- Default agents (`is_default = true`) are accessible by everyone
+
+**What is NOT enforced today:**
+- Role-based write/delete restrictions for shared users
+- Preventing "viewer" role holders from editing
+- "admin" role does not grant resharing ability
+
+### Default Role
+
+When sharing without specifying a role, the default is `"user"`:
+
+```
+POST /v1/agents/:id/shares
+{ "user_id": "alice@example.com" }
+→ role stored as "user"
+```
 
 ## The 4-Step CanAccess Pipeline
 
@@ -60,86 +77,71 @@ When you try to access an agent, GoClaw checks in this order:
    → No: proceed to step 4
 
 4. Is there an agent_shares row for (agent_id, your_id)?
-   → Yes: allow (you get the role from that row)
+   → Yes: allow (you get the role stored in that row)
    → No: access denied
 ```
 
-**Result**: Each access check returns `(allowed: bool, role: string)`.
+**Result**: Each access check returns `(allowed: bool, role: string)`. The role string is returned but downstream handlers currently do not restrict behavior based on it.
 
-## Sharing an Agent via API
+## Predefined Agents via Channel Instances
 
-Use the `ShareAgent()` method (go backend) or equivalent RPC:
+Predefined agents can also be accessible through `channel_instances`. If a predefined agent has an enabled channel instance whose `allow_from` list includes your user ID, you can access that agent even without a direct share or default flag.
 
-```go
-// Go example
-err := agentStore.ShareAgent(ctx, agentID, "user@example.com", "operator", "owner@example.com")
-if err != nil {
-  log.Fatal(err)
-}
-```
+## Sharing an Agent via HTTP API
 
-### WebSocket API
+Use `POST /v1/agents/:id/shares` to share an agent. Only the owner (or a gateway owner-level user) can share.
 
-You can share agents via WebSocket RPC (exact method name depends on your gateway implementation):
+**Request:**
+```http
+POST /v1/agents/550e8400-e29b-41d4-a716-446655440000/shares
+Content-Type: application/json
+Authorization: Bearer <token>
 
-```json
 {
-  "method": "agents.share",
-  "params": {
-    "agentId": "research-bot",
-    "userId": "alice@example.com",
-    "role": "operator",
-    "grantedBy": "bob@example.com"
-  }
+  "user_id": "alice@example.com",
+  "role": "operator"
 }
 ```
 
-**Response** (on success):
+**Response (201 Created):**
 ```json
-{
-  "ok": true,
-  "share": {
-    "agentId": "research-bot",
-    "userId": "alice@example.com",
-    "role": "operator",
-    "grantedBy": "bob@example.com",
-    "createdAt": "2026-03-07T15:30:00Z"
-  }
-}
+{ "ok": "true" }
 ```
+
+If `role` is omitted, it defaults to `"user"`.
 
 ## Revoking Access
 
-Remove a share to immediately deny access:
+Use `DELETE /v1/agents/:id/shares/:userID` to remove a share immediately.
 
-```go
-err := agentStore.RevokeShare(ctx, agentID, "alice@example.com")
+**Request:**
+```http
+DELETE /v1/agents/550e8400-e29b-41d4-a716-446655440000/shares/alice@example.com
+Authorization: Bearer <token>
 ```
 
-WebSocket:
+**Response (200 OK):**
 ```json
-{
-  "method": "agents.unshare",
-  "params": {
-    "agentId": "research-bot",
-    "userId": "alice@example.com"
-  }
-}
+{ "ok": "true" }
 ```
 
 ## Listing Shares
 
-See who has access to your agent:
+Use `GET /v1/agents/:id/shares` to see who has access. Only the owner can list shares.
 
+**Response:**
+```json
+{
+  "shares": [
+    { "id": "...", "agent_id": "...", "user_id": "alice@example.com", "role": "operator", "granted_by": "owner@example.com", "created_at": "..." },
+    { "id": "...", "agent_id": "...", "user_id": "bob@example.com", "role": "viewer", "granted_by": "owner@example.com", "created_at": "..." }
+  ]
+}
+```
+
+**Go store method:**
 ```go
 shares, err := agentStore.ListShares(ctx, agentID)
-// shares: []AgentShareData with id, agent_id, user_id, role, granted_by, created_at
-```
-
-**Example output**:
-```
-Share 1: user_id="alice@example.com", role="operator"
-Share 2: user_id="bob@example.com", role="viewer"
 ```
 
 ## Dashboard Share Management
@@ -149,7 +151,7 @@ The Dashboard provides a UI for sharing:
 1. Open **Agents** → select your agent
 2. Click **Sharing** or **Team** tab
 3. Enter a user ID (email, Telegram handle, etc.)
-4. Select a role: Admin, Operator, Viewer
+4. Select a role label (note: not enforced at runtime yet)
 5. Click **Share**
 6. To revoke: find the user in the list, click **Remove**
 
@@ -160,28 +162,28 @@ Changes take effect immediately.
 ### Scenario 1: Build → Tune → Deploy
 
 1. **Owner** creates `customer-summary` agent (default: not shared)
-2. **Owner** grants **admin** to `alice` (analyst who refines prompts)
-3. **Alice** tweaks SOUL.md, tests with real queries
+2. **Owner** shares with `alice` — she gains access (role stored as "operator")
+3. **Alice** accesses the agent and refines settings
 4. **Owner** marks agent **default** → all users can now use it
-5. **Owner** revokes **alice**'s share (no longer needed)
+5. **Owner** revokes alice's share (no longer needed)
 
 ### Scenario 2: Team Collaboration
 
 1. **Owner** creates `research-agent`
-2. Grants **operator** to team members → they can run it and tune settings
-3. Grants **viewer** to manager → sees outputs, can't edit
-4. Team iterates; owner controls major changes
+2. Shares with team members — they can all access and run the agent
+3. Shares with manager as "viewer" — manager can access (role enforcement planned)
+4. Team iterates; owner controls sharing and deletion
 
 ### Scenario 3: Shared Utility
 
 1. **Owner** creates `web-search` agent
 2. Marks it **default** (no explicit shares needed)
 3. All users can use it; owner can still edit it
-4. If **owner** revokes default flag, only owner can use it again
+4. If **owner** unmarks default, only owner can use it again
 
 ## ListAccessible — Find Your Agents
 
-When a user logs in, GoClaw returns only agents they can access:
+When a user loads their agent list, GoClaw returns only agents they can access:
 
 ```go
 agents, err := agentStore.ListAccessible(ctx, userID)
@@ -189,6 +191,7 @@ agents, err := agentStore.ListAccessible(ctx, userID)
 // - All agents owned by userID
 // - All default agents
 // - All agents explicitly shared with userID
+// - Predefined agents accessible via channel_instances
 ```
 
 This powers the "My Agents" list in the Dashboard.
@@ -197,21 +200,19 @@ This powers the "My Agents" list in the Dashboard.
 
 | Practice | Why |
 |----------|-----|
-| **Give viewer role by default** | Safe: read-only access prevents accidental edits |
-| **Require admin approval for major changes** | Ensures consistency; owner reviews before deploy |
+| **Share by explicit user ID** | Clear audit trail of who has access |
 | **Revoke shares when no longer needed** | Reduces clutter; tightens security |
 | **Use default sparingly** | Good for utilities (web search, memory); bad for sensitive agents |
-| **Document who has what role** | Especially for multi-team agents; prevents confusion |
+| **Keep track of shares via ListShares** | Especially for multi-team agents; prevents confusion |
 
 ## Common Issues
 
 | Problem | Solution |
 |---------|----------|
-| User can't see the agent | Check: (1) agent exists, (2) you're the owner, (3) user has share, or (4) agent is default |
-| Can't change agent settings | You need at least **operator** role; viewer is read-only |
+| User can't see the agent | Check: (1) agent exists, (2) user has a share row, or (3) agent is default |
 | Revoked but user still has access | Maybe the agent is **default**; unmark it first, then revoke |
-| Forgot who has access | Use `ListShares()` or Dashboard → Sharing tab to audit |
-| Want to share but unsure on role | Use **viewer** first; upgrade to **operator** if they need to edit |
+| Forgot who has access | Use `GET /v1/agents/:id/shares` or Dashboard → Sharing tab to audit |
+| Role restrictions not working | Role-based enforcement is planned, not yet implemented — all shared users have equal access today |
 
 ## What's Next
 

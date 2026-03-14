@@ -314,7 +314,7 @@ Controls how agents can spawn child agents.
 
 ```jsonc
 "subagents": {
-  "maxConcurrent": 8,
+  "maxConcurrent": 20,
   "maxSpawnDepth": 1,
   "maxChildrenPerAgent": 5,
   "archiveAfterMinutes": 60,
@@ -324,7 +324,7 @@ Controls how agents can spawn child agents.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `maxConcurrent` | int | `8` | Max subagents running simultaneously |
+| `maxConcurrent` | int | `20` | Max subagents running simultaneously |
 | `maxSpawnDepth` | int | `1` | Max nesting depth (1–5); `1` = only root can spawn |
 | `maxChildrenPerAgent` | int | `5` | Max children per parent agent (1–20) |
 | `archiveAfterMinutes` | int | `60` | Archive idle subagents after this duration |
@@ -418,13 +418,13 @@ Docker-based isolation for code execution. Can be set globally or overridden per
   "token": "env:TELEGRAM_BOT_TOKEN",
   "proxy": "",
   "allow_from": ["123456789"],
-  "dm_policy": "open",
+  "dm_policy": "pairing",
   "group_policy": "allowlist",
   "require_mention": true,
   "history_limit": 50,
   "dm_stream": false,
   "group_stream": false,
-  "reaction_level": "minimal",
+  "reaction_level": "full",
   "media_max_bytes": 20971520,
   "link_preview": true,
   "block_reply": false,
@@ -444,13 +444,13 @@ Docker-based isolation for code execution. Can be set globally or overridden per
 | `token` | string | — | Bot token from @BotFather |
 | `proxy` | string | — | HTTP/SOCKS5 proxy URL |
 | `allow_from` | []string | — | Allowlisted user/chat IDs; empty = allow all |
-| `dm_policy` | string | `"open"` | DM access: `"pairing"`, `"allowlist"`, `"open"`, `"disabled"` |
+| `dm_policy` | string | `"pairing"` | DM access: `"pairing"`, `"allowlist"`, `"open"`, `"disabled"` |
 | `group_policy` | string | `"open"` | Group access: `"open"`, `"allowlist"`, `"disabled"` |
 | `require_mention` | bool | `true` | Require @bot mention in groups |
 | `history_limit` | int | `50` | Messages fetched for context on new conversation |
 | `dm_stream` | bool | `false` | Stream responses in DMs |
 | `group_stream` | bool | `false` | Stream responses in groups |
-| `reaction_level` | string | `"minimal"` | Emoji reactions: `"off"`, `"minimal"`, `"full"` |
+| `reaction_level` | string | `"full"` | Emoji reactions: `"off"`, `"minimal"`, `"full"` |
 | `media_max_bytes` | int | `20971520` | Max media file size (default 20 MB) |
 | `link_preview` | bool | `true` | Show link previews |
 | `block_reply` | bool | `false` | Override gateway `block_reply` for this channel |
@@ -509,7 +509,7 @@ Docker-based isolation for code execution. Can be set globally or overridden per
   "reaction_level": "minimal",
   "block_reply": false,
   "debounce_delay": 300,
-  "thread_ttl": "24h",
+  "thread_ttl": 24,
   "media_max_bytes": 20971520
 }
 ```
@@ -525,7 +525,7 @@ Docker-based isolation for code execution. Can be set globally or overridden per
 | `require_mention` | bool | `true` | Require @mention in channels |
 | `native_stream` | bool | `false` | Use Slack native streaming API |
 | `debounce_delay` | int | `300` | Message debounce in milliseconds |
-| `thread_ttl` | string | `"24h"` | How long to maintain thread context |
+| `thread_ttl` | int | `24` | Hours to maintain thread context; `0` = disabled (always require @mention) |
 | `media_max_bytes` | int | `20971520` | Max media size (default 20 MB) |
 
 ### WhatsApp
@@ -556,7 +556,7 @@ Docker-based isolation for code execution. Can be set globally or overridden per
   "enabled": true,
   "token": "env:ZALO_OA_TOKEN",
   "allow_from": [],
-  "dm_policy": "open",
+  "dm_policy": "pairing",
   "webhook_url": "https://example.com/zalo/webhook",
   "webhook_secret": "env:ZALO_WEBHOOK_SECRET",
   "media_max_mb": 5,
@@ -568,7 +568,7 @@ Docker-based isolation for code execution. Can be set globally or overridden per
 |-------|------|---------|-------------|
 | `token` | string | — | Zalo OA access token |
 | `allow_from` | []string | — | Allowlisted user IDs |
-| `dm_policy` | string | `"open"` | DM access policy |
+| `dm_policy` | string | `"pairing"` | DM access policy |
 | `webhook_url` | string | — | Public webhook URL for Zalo callbacks |
 | `webhook_secret` | string | — | Webhook signature secret |
 | `media_max_mb` | int | `5` | Max media size (MB) |
@@ -580,7 +580,7 @@ Docker-based isolation for code execution. Can be set globally or overridden per
 "zalo_personal": {
   "enabled": true,
   "allow_from": [],
-  "dm_policy": "open",
+  "dm_policy": "pairing",
   "group_policy": "disabled",
   "require_mention": false,
   "history_limit": 50,
@@ -592,7 +592,7 @@ Docker-based isolation for code execution. Can be set globally or overridden per
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `allow_from` | []string | — | Allowlisted user IDs |
-| `dm_policy` | string | `"open"` | DM access policy |
+| `dm_policy` | string | `"pairing"` | DM access policy |
 | `group_policy` | string | `"disabled"` | Group access policy |
 | `require_mention` | bool | `false` | Require mention in groups |
 | `history_limit` | int | `50` | Context history limit |
@@ -615,7 +615,7 @@ JSON key: `"feishu"`
   "webhook_port": 3000,
   "webhook_path": "/feishu/events",
   "allow_from": [],
-  "dm_policy": "open",
+  "dm_policy": "pairing",
   "group_policy": "open",
   "group_allow_from": [],
   "require_mention": true,

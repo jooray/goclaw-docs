@@ -99,7 +99,7 @@ Enable and configure messaging channels:
 - **WhatsApp** — Connection QR code
 - **Zalo** — App credentials
 - **Zalo Personal** — Personal Zalo account integration
-- **Larksuite** — App ID and secret
+- **Feishu / Lark** — App ID and secret
 - **Slack** — Bot token, workspace settings
 
 #### Nodes
@@ -175,7 +175,7 @@ Delegation history across all agents — track which agents delegated tasks to o
 
 #### Usage
 
-Usage metrics and cost tracking — monitor token consumption, API calls, and costs per agent/channel.
+Usage metrics and cost tracking — monitor token consumption, API calls, and costs per agent/channel. Accessed via the **Usage** tab on the Overview page, not a separate sidebar item.
 
 #### Logs
 

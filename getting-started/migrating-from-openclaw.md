@@ -13,13 +13,13 @@ GoClaw is the multi-tenant evolution of OpenClaw. If you've been running OpenCla
 | Multi-tenant | No (single user) | Yes (per-user isolation) |
 | Agent teams | Sub-agent delegation | Full team collaboration (shared task board, delegation) |
 | Credential storage | Plain text in config | AES-256-GCM encrypted in DB |
-| Memory | SQLite + QMD semantic search | PostgreSQL with hybrid search |
+| Memory | SQLite + QMD semantic search | PostgreSQL + SQLite (FTS5 hybrid search) |
 | Tracing | No | Full LLM call traces with cost tracking |
 | MCP support | Yes (via mcporter bridge) | Yes (stdio, SSE, streamable-http) |
 | Custom tools | Yes (52+ built-in skills) | Yes (define via dashboard or API) |
 | Code sandbox | Yes (Docker-based) | Yes (Docker-based with per-agent config) |
 | Database | SQLite | PostgreSQL (managed mode) |
-| Channels | 18 (9 core + 9 extensions) | 7 (Telegram, Discord, Slack, WhatsApp, Zalo OA, Zalo Personal, Larksuite) |
+| Channels | 18 (9 core + 9 extensions) | 7 (Telegram, Discord, Slack, WhatsApp, Zalo OA, Zalo Personal, Feishu) |
 | Dashboard | Basic web UI | Full management dashboard |
 
 ## Config Mapping
@@ -81,9 +81,18 @@ Additional context files for advanced features:
 | `MEMORY.md` | Long-term curated memory |
 | `DELEGATION.md` | Delegation instructions for sub-agents |
 | `TEAM.md` | Team coordination rules |
-| `AVAILABILITY.md` | Agent availability schedule |
+
+GoClaw supports both agent-level (shared) and per-user context file overrides. The file names listed are conventions, not requirements.
 
 **Key difference:** OpenClaw stores these on the filesystem. GoClaw stores them in PostgreSQL with per-user scoping — each user can have their own version of context files for the same agent.
+
+## What Migrates (and What Doesn't)
+
+| Migrates | Doesn't Migrate |
+|----------|----------------|
+| Agent config (provider, model, tools) | Message history (fresh start) |
+| Context files (manual upload) | Session state |
+| Channel tokens (via env vars) | User profiles (recreated on first login) |
 
 ## Migration Steps
 

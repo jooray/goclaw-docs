@@ -316,7 +316,7 @@ Kiểm soát cách các agent có thể tạo agent con.
 
 ```jsonc
 "subagents": {
-  "maxConcurrent": 8,
+  "maxConcurrent": 20,
   "maxSpawnDepth": 1,
   "maxChildrenPerAgent": 5,
   "archiveAfterMinutes": 60,
@@ -326,7 +326,7 @@ Kiểm soát cách các agent có thể tạo agent con.
 
 | Trường | Kiểu | Mặc định | Mô tả |
 |--------|------|---------|-------|
-| `maxConcurrent` | int | `8` | Số subagent chạy đồng thời tối đa |
+| `maxConcurrent` | int | `20` | Số subagent chạy đồng thời tối đa |
 | `maxSpawnDepth` | int | `1` | Độ sâu lồng nhau tối đa (1–5); `1` = chỉ root mới được tạo |
 | `maxChildrenPerAgent` | int | `5` | Số agent con tối đa mỗi agent cha (1–20) |
 | `archiveAfterMinutes` | int | `60` | Lưu trữ subagent không hoạt động sau khoảng thời gian này |
@@ -420,13 +420,13 @@ Cô lập dựa trên Docker cho thực thi code. Có thể đặt toàn cục h
   "token": "env:TELEGRAM_BOT_TOKEN",
   "proxy": "",
   "allow_from": ["123456789"],
-  "dm_policy": "open",
+  "dm_policy": "pairing",
   "group_policy": "allowlist",
   "require_mention": true,
   "history_limit": 50,
   "dm_stream": false,
   "group_stream": false,
-  "reaction_level": "minimal",
+  "reaction_level": "full",
   "media_max_bytes": 20971520,
   "link_preview": true,
   "block_reply": false,
@@ -446,13 +446,13 @@ Cô lập dựa trên Docker cho thực thi code. Có thể đặt toàn cục h
 | `token` | string | — | Bot token từ @BotFather |
 | `proxy` | string | — | URL proxy HTTP/SOCKS5 |
 | `allow_from` | []string | — | ID người dùng/chat được phép; để trống = cho phép tất cả |
-| `dm_policy` | string | `"open"` | Truy cập DM: `"pairing"`, `"allowlist"`, `"open"`, `"disabled"` |
+| `dm_policy` | string | `"pairing"` | Truy cập DM: `"pairing"`, `"allowlist"`, `"open"`, `"disabled"` |
 | `group_policy` | string | `"open"` | Truy cập nhóm: `"open"`, `"allowlist"`, `"disabled"` |
 | `require_mention` | bool | `true` | Yêu cầu đề cập @bot trong nhóm |
 | `history_limit` | int | `50` | Số tin nhắn tải để lấy ngữ cảnh khi bắt đầu hội thoại |
 | `dm_stream` | bool | `false` | Phản hồi streaming trong DM |
 | `group_stream` | bool | `false` | Phản hồi streaming trong nhóm |
-| `reaction_level` | string | `"minimal"` | Reaction emoji: `"off"`, `"minimal"`, `"full"` |
+| `reaction_level` | string | `"full"` | Reaction emoji: `"off"`, `"minimal"`, `"full"` |
 | `media_max_bytes` | int | `20971520` | Kích thước file media tối đa (mặc định 20 MB) |
 | `link_preview` | bool | `true` | Hiển thị xem trước liên kết |
 | `block_reply` | bool | `false` | Ghi đè `block_reply` của gateway cho kênh này |
@@ -511,7 +511,7 @@ Cô lập dựa trên Docker cho thực thi code. Có thể đặt toàn cục h
   "reaction_level": "minimal",
   "block_reply": false,
   "debounce_delay": 300,
-  "thread_ttl": "24h",
+  "thread_ttl": 24,
   "media_max_bytes": 20971520
 }
 ```
@@ -527,7 +527,7 @@ Cô lập dựa trên Docker cho thực thi code. Có thể đặt toàn cục h
 | `require_mention` | bool | `true` | Yêu cầu @mention trong kênh |
 | `native_stream` | bool | `false` | Dùng Slack native streaming API |
 | `debounce_delay` | int | `300` | Debounce tin nhắn tính bằng millisecond |
-| `thread_ttl` | string | `"24h"` | Thời gian duy trì ngữ cảnh thread |
+| `thread_ttl` | int | `24` | Số giờ duy trì ngữ cảnh thread; `0` = vô hiệu hóa (luôn yêu cầu @mention) |
 | `media_max_bytes` | int | `20971520` | Kích thước media tối đa (mặc định 20 MB) |
 
 ### WhatsApp
@@ -558,7 +558,7 @@ Cô lập dựa trên Docker cho thực thi code. Có thể đặt toàn cục h
   "enabled": true,
   "token": "env:ZALO_OA_TOKEN",
   "allow_from": [],
-  "dm_policy": "open",
+  "dm_policy": "pairing",
   "webhook_url": "https://example.com/zalo/webhook",
   "webhook_secret": "env:ZALO_WEBHOOK_SECRET",
   "media_max_mb": 5,
@@ -570,7 +570,7 @@ Cô lập dựa trên Docker cho thực thi code. Có thể đặt toàn cục h
 |--------|------|---------|-------|
 | `token` | string | — | Access token Zalo OA |
 | `allow_from` | []string | — | ID người dùng được phép |
-| `dm_policy` | string | `"open"` | Chính sách truy cập DM |
+| `dm_policy` | string | `"pairing"` | Chính sách truy cập DM |
 | `webhook_url` | string | — | URL webhook công khai cho callback Zalo |
 | `webhook_secret` | string | — | Secret chữ ký webhook |
 | `media_max_mb` | int | `5` | Kích thước media tối đa (MB) |
@@ -582,7 +582,7 @@ Cô lập dựa trên Docker cho thực thi code. Có thể đặt toàn cục h
 "zalo_personal": {
   "enabled": true,
   "allow_from": [],
-  "dm_policy": "open",
+  "dm_policy": "pairing",
   "group_policy": "disabled",
   "require_mention": false,
   "history_limit": 50,
@@ -594,7 +594,7 @@ Cô lập dựa trên Docker cho thực thi code. Có thể đặt toàn cục h
 | Trường | Kiểu | Mặc định | Mô tả |
 |--------|------|---------|-------|
 | `allow_from` | []string | — | ID người dùng được phép |
-| `dm_policy` | string | `"open"` | Chính sách truy cập DM |
+| `dm_policy` | string | `"pairing"` | Chính sách truy cập DM |
 | `group_policy` | string | `"disabled"` | Chính sách truy cập nhóm |
 | `require_mention` | bool | `false` | Yêu cầu mention trong nhóm |
 | `history_limit` | int | `50` | Giới hạn lịch sử ngữ cảnh |
@@ -617,7 +617,7 @@ Khóa JSON: `"feishu"`
   "webhook_port": 3000,
   "webhook_path": "/feishu/events",
   "allow_from": [],
-  "dm_policy": "open",
+  "dm_policy": "pairing",
   "group_policy": "open",
   "group_allow_from": [],
   "require_mention": true,

@@ -15,14 +15,13 @@ Create teams via API, Dashboard, or CLI. The system automatically establishes de
   --description "Parallel research and writing"
 ```
 
-**Via HTTP API**:
+**Via WebSocket RPC** (`teams.create`):
 
-```bash
-POST /v1/teams
+```json
 {
   "name": "Research Team",
-  "lead_agent_key": "researcher_agent",
-  "member_agent_keys": ["analyst_agent", "writer_agent"],
+  "lead": "researcher_agent",
+  "members": ["analyst_agent", "writer_agent"],
   "description": "Parallel research and writing"
 }
 ```
@@ -36,7 +35,7 @@ When you create a team, the system:
 1. **Validates** lead and member agents exist
 2. **Creates team record** with `status=active`
 3. **Adds lead as a member** with `role=lead`
-4. **Adds each member** with `role=member`
+4. **Adds each member** with `role=member` (or `role=reviewer` if specified)
 5. **Auto-creates delegation links** from lead → each member:
    - Direction: `outbound` (lead can delegate to members)
    - Max concurrent delegations per link: `3`
@@ -54,18 +53,19 @@ flowchart TD
 
     READY --> MANAGE["Admin manages team"]
     MANAGE --> ADD["Add member<br/>→ auto-link lead→member"]
-    MANAGE --> REMOVE["Remove member<br/>→ link remains for cleanup"]
-    MANAGE --> DELETE["Delete team<br/>→ team_id cleared from links"]
+    MANAGE --> REMOVE["Remove member<br/>→ team links auto-deleted"]
+    MANAGE --> DELETE["Delete team<br/>→ record hard-deleted from DB"]
 ```
 
 ## Managing Team Membership
 
-**Add a member**:
+**Add a member** (role is `member` by default; can also be `reviewer`):
 
 ```bash
 ./goclaw team add-member \
   --team-id 550e8400-e29b-41d4-a716-446655440000 \
-  --agent analyst_agent
+  --agent analyst_agent \
+  --role member
 
 # When added, a delegation link is automatically created
 # from lead → new member
@@ -76,10 +76,9 @@ flowchart TD
 ```bash
 ./goclaw team remove-member \
   --team-id 550e8400-e29b-41d4-a716-446655440000 \
-  --agent analyst_agent
+  --agent-id <agent-uuid>
 
-# Link remains; it's not automatically deleted
-# (manual cleanup to preserve history)
+# Team-specific delegation links are automatically cleaned up on removal
 ```
 
 **List team members**:
@@ -91,7 +90,7 @@ flowchart TD
 # Agent Key        Role        Display Name
 # researcher_agent lead        Research Expert
 # analyst_agent    member      Data Analyst
-# writer_agent     member      Content Writer
+# writer_agent     reviewer    Content Reviewer
 ```
 
 ## Team Settings & Access Control
@@ -104,7 +103,13 @@ Teams support fine-grained access control via settings JSON:
   "deny_user_ids": [],
   "allow_channels": ["telegram", "slack"],
   "deny_channels": [],
-  "progress_notifications": true
+  "progress_notifications": true,
+  "followup_interval_minutes": 30,
+  "followup_max_reminders": 3,
+  "escalation_mode": "",
+  "escalation_actions": [],
+  "workspace_scope": "",
+  "workspace_quota_mb": 500
 }
 ```
 
@@ -114,6 +119,12 @@ Teams support fine-grained access control via settings JSON:
 - `allow_channels`: Only these channels trigger team work (empty = open)
 - `deny_channels`: Block these channels
 - `progress_notifications`: Send periodic updates during async delegations
+- `followup_interval_minutes`: Minutes between auto follow-up reminders on in-progress tasks
+- `followup_max_reminders`: Maximum number of follow-up reminders per task
+- `escalation_mode`: Escalation behavior when tasks stall (optional)
+- `escalation_actions`: List of escalation actions to take (optional)
+- `workspace_scope`: Scope restriction for shared workspace files (optional)
+- `workspace_quota_mb`: Disk quota for team workspace in megabytes (optional)
 
 **Set team settings**:
 
@@ -134,7 +145,8 @@ Teams have a `status` field:
 
 - `active`: Team is operational
 - `archived`: Team exists but disabled
-- `deleted`: Team marked for deletion
+
+To fully remove a team, use the delete operation — it hard-deletes the record from the database. There is no `deleted` status.
 
 **Change team status**:
 

@@ -8,8 +8,8 @@ All team members access the mailbox via the `team_message` tool. Actions:
 
 | Action | Params | Description |
 |--------|--------|-------------|
-| `send` | `to`, `text` | Send direct message to specific teammate |
-| `broadcast` | `text` | Send message to all teammates (except self) |
+| `send` | `to`, `text`, `media` (optional) | Send direct message to specific teammate |
+| `broadcast` | `text` | Send message to all teammates (except self); **lead only** |
 | `read` | none | Get unread messages; auto-marks as read |
 
 ## Send a Direct Message
@@ -26,10 +26,9 @@ All team members access the mailbox via the `team_message` tool. Actions:
 
 **What happens**:
 1. Message is persisted to database
-2. Recipient is notified in real-time via message bus
-3. Message routed through `team_message` channel with `teammate:sender_key` prefix
-4. Response is published back to originating channel
-5. Event broadcast to UI for real-time updates
+2. A "message" task is auto-created on the team task board (visible in Tasks tab)
+3. Recipient is notified in real-time via message bus (channel: `system`, sender: `teammate:{sender_key}`)
+4. Event broadcast to UI for real-time updates
 
 **Response**:
 ```
@@ -40,7 +39,7 @@ Message sent to analyst_agent.
 
 ## Broadcast to All Members
 
-**Send message to entire team** (except self):
+**Lead sends message to entire team** (except self). Only the team lead can broadcast:
 
 ```json
 {
@@ -76,13 +75,14 @@ Broadcast sent to all teammates.
   "messages": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
+      "team_id": "...",
+      "from_agent_id": "...",
       "from_agent_key": "researcher_agent",
-      "from_display_name": "Research Expert",
       "to_agent_key": "analyst_agent",
       "message_type": "chat",
       "content": "Please review my findings...",
-      "created_at": "2025-03-08T10:30:00Z",
-      "read_at": null
+      "read": false,
+      "created_at": "2025-03-08T10:30:00Z"
     }
   ],
   "count": 1
@@ -98,7 +98,7 @@ Messages flow through the system with special routing:
 ```mermaid
 flowchart TD
     SEND["team_message send/broadcast"] --> PERSIST["Persist to DB"]
-    PERSIST --> BUS["Message Bus<br/>SenderID: 'teammate:{sender_key}'"]
+    PERSIST --> BUS["Message Bus<br/>Channel: 'system'<br/>SenderID: 'teammate:{sender_key}'"]
     BUS --> TARGET["Route to target agent session"]
     TARGET --> DISPLAY["Display in conversation"]
 ```
@@ -108,7 +108,7 @@ flowchart TD
 [Team message from researcher_agent]: Please review my findings...
 ```
 
-The `teammate:` prefix tells the consumer to route the message to the correct team member's session, not the general user session.
+The `teammate:` prefix in the sender ID tells the consumer to route the message to the correct team member's session, not the general user session.
 
 ## Event Broadcasting
 
@@ -116,15 +116,18 @@ When messages are sent, real-time events are broadcast to UI:
 
 ```json
 {
-  "event": "team_message.sent",
+  "event": "team.message.sent",
   "payload": {
     "team_id": "550e8400-e29b-41d4-a716-446655440000",
     "from_agent_key": "researcher_agent",
     "from_display_name": "Research Expert",
     "to_agent_key": "analyst_agent",
+    "to_display_name": "Data Analyst",
     "message_type": "chat",
     "preview": "Please review my findings...",
-    "timestamp": "2025-03-08T10:30:00Z"
+    "user_id": "...",
+    "channel": "telegram",
+    "chat_id": "..."
   }
 }
 ```

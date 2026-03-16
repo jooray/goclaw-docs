@@ -1,6 +1,6 @@
 # Team Messaging
 
-Team members communicate via a built-in mailbox system. Send direct messages, broadcast to all members, and read unread messages. Messages flow through the message bus with real-time delivery.
+Team members communicate via a built-in mailbox system. Members can send direct messages and read unread messages. The lead agent does not have access to the `team_message` tool — it is removed from the lead's tool list by policy. Messages flow through the message bus with real-time delivery.
 
 ## Mailbox Tool: `team_message`
 
@@ -9,7 +9,7 @@ All team members access the mailbox via the `team_message` tool. Actions:
 | Action | Params | Description |
 |--------|--------|-------------|
 | `send` | `to`, `text`, `media` (optional) | Send direct message to specific teammate |
-| `broadcast` | `text` | Send message to all teammates (except self); **lead only** |
+| `broadcast` | `text` | Send message to all teammates (except self); system/delegate channel only |
 | `read` | none | Get unread messages; auto-marks as read |
 
 ## Send a Direct Message
@@ -39,7 +39,7 @@ Message sent to analyst_agent.
 
 ## Broadcast to All Members
 
-**Lead sends message to entire team** (except self). Only the team lead can broadcast:
+Broadcast delivers a message to all team members simultaneously. This action is restricted to system/delegate channels (internal operations) — regular member agents cannot call `broadcast` directly.
 
 ```json
 {
@@ -91,6 +91,8 @@ Broadcast sent to all teammates.
 
 **Auto-marking**: Reading messages automatically marks them as read. Next `read` call will only show new unread messages.
 
+**Pagination**: Returns up to 50 unread messages per call. If more exist, the response includes `"has_more": true` and a note to call `read` again after processing.
+
 ## Message Routing
 
 Messages flow through the system with special routing:
@@ -134,13 +136,13 @@ When messages are sent, real-time events are broadcast to UI:
 
 ## Use Cases
 
-**Lead → Member**: "Please claim the next task from the board"
-
 **Member → Member**: "Task 123 is ready for your review. The data shows..."
 
-**Member → Lead**: "Task 456 is 80% done. I need clarification on the acceptance criteria."
+**Member → Member**: "I'm blocked on step 2 — do you have the raw dataset I need?"
 
-**Broadcast**: "Changing priorities. Focus on tasks 1, 2, 5 instead of 3, 4."
+**Broadcast** (system-level only): "Changing priorities. Focus on tasks 1, 2, 5 instead of 3, 4."
+
+> **Note**: Leads coordinate via `team_tasks`, not `team_message`. Use `team_tasks(action="progress")` to report status updates instead of direct messages.
 
 ## Best Practices
 

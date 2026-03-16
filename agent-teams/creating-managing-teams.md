@@ -169,8 +169,8 @@ When a team is created or modified, `TEAM.md` is generated and injected into mem
 **Members' TEAM.md** includes:
 - Team name and teammate list
 - Instructions to focus on delegated work
-- How to send progress updates via mailbox
-- Task board actions available (list, get, search — no create/delegate)
+- How to report progress via `team_tasks(action="progress", percent=50, text="...")`
+- Task board actions available: `claim`, `complete`, `list`, `get`, `search`, `progress`, `comment`, `attach`, `retry` (no `create`, `cancel`, `approve`, `reject`)
 
 The context is wrapped in `<system_context>` tags and refreshed automatically when team configuration changes.
 

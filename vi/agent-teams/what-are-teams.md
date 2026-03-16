@@ -7,16 +7,16 @@ Agent team cho phép nhiều agent cùng cộng tác trên các task chung. Mộ
 ## Mô hình Team
 
 Một team bao gồm:
-- **Lead Agent**: Điều phối công việc, phân công cho member qua `spawn`, tổng hợp kết quả
-- **Member Agents**: Nhận task từ board chung, thực thi độc lập, tự động thông báo kết quả
-- **Reviewer Agents** (tùy chọn): Đánh giá công việc khi được gọi qua `evaluate_loop`; phản hồi bằng `APPROVED` hoặc `REJECTED: <phản hồi>`
+- **Lead Agent**: Điều phối công việc, tạo và giao task qua `team_tasks`, tổng hợp kết quả
+- **Member Agents**: Nhận task được dispatch, thực thi độc lập, hoàn thành với kết quả
+- **Reviewer Agents** (tùy chọn): Đánh giá kết quả task; phản hồi bằng `APPROVED` hoặc `REJECTED: <phản hồi>`
 - **Shared Task Board**: Theo dõi công việc, phụ thuộc, mức độ ưu tiên, trạng thái
-- **Team Mailbox**: Tin nhắn trực tiếp và broadcast giữa các member (lead không thể gửi qua mailbox)
+- **Team Mailbox**: Tin nhắn trực tiếp giữa các member qua `team_message`; lead không có tool mailbox
 
 ```mermaid
 flowchart TD
     subgraph Team["Agent Team"]
-        LEAD["Lead Agent<br/>Điều phối công việc, spawn member,<br/>tổng hợp kết quả"]
+        LEAD["Lead Agent<br/>Điều phối công việc, giao task,<br/>tổng hợp kết quả"]
         M1["Member A<br/>Nhận và thực thi task"]
         M2["Member B<br/>Nhận và thực thi task"]
         M3["Member C<br/>Nhận và thực thi task"]
@@ -28,8 +28,8 @@ flowchart TD
     end
 
     USER["Người dùng"] -->|tin nhắn| LEAD
-    LEAD -->|spawn + tự động tạo task| M1 & M2 & M3
-    M1 & M2 & M3 -->|kết quả tự động thông báo| LEAD
+    LEAD -->|team_tasks tạo+giao task| M1 & M2 & M3
+    M1 & M2 & M3 -->|hoàn thành với kết quả| LEAD
     LEAD -->|phản hồi tổng hợp| USER
 
     LEAD & M1 & M2 & M3 <--> TB
@@ -38,23 +38,23 @@ flowchart TD
 
 ## Nguyên tắc Thiết kế Cốt lõi
 
-**TEAM.md cho tất cả**: Mọi agent trong team — lead và member — đều nhận `TEAM.md` được inject vào system prompt. Nội dung có nhận thức về vai trò: lead nhận hướng dẫn điều phối đầy đủ (các mẫu spawn, chuỗi phụ thuộc, nhắc nhở follow-up); member nhận hướng dẫn đơn giản hơn (nhận task, gửi cập nhật tiến độ qua `team_message`).
+**TEAM.md cho tất cả**: Mọi agent trong team — lead và member — đều nhận `TEAM.md` được inject vào system prompt. Nội dung có nhận thức về vai trò: lead nhận hướng dẫn điều phối đầy đủ (các mẫu `team_tasks`, chuỗi phụ thuộc, nhắc nhở follow-up); member nhận hướng dẫn thực thi (báo cáo tiến độ qua `team_tasks`).
 
-**Tự động hoàn thành**: Khi một delegation kết thúc, task liên kết của nó được tự động đánh dấu hoàn thành. Không cần ghi chép thủ công.
+**Tự động hoàn thành**: Khi member hoàn thành một task, các task phụ thuộc bị blocked tự động chuyển sang pending và được dispatch. Không cần ghi chép thủ công.
 
-**Xử lý song song**: Khi nhiều member làm việc đồng thời, kết quả được thu thập trong một lần thông báo duy nhất đến lead.
+**Xử lý song song**: Nhiều member làm việc đồng thời trên các task được giao độc lập; mỗi task hoàn thành riêng lẻ và lead được thông báo theo từng task.
 
-**Lead không thể dùng mailbox**: Tool `team_message` bị từ chối với lead. Lead điều phối hoàn toàn qua `spawn`; member dùng `team_message` để gửi cập nhật tiến độ cho nhau hoặc báo cáo lại.
+**Lead không thể dùng mailbox**: Tool `team_message` bị xóa khỏi danh sách tool của lead theo policy. Lead điều phối qua `team_tasks`; member dùng `team_message` để gửi tin nhắn trực tiếp cho nhau.
 
 ## Ví dụ Thực tế
 
 **Tình huống**: Người dùng yêu cầu lead phân tích một bài nghiên cứu và viết tóm tắt.
 
 1. Lead nhận yêu cầu
-2. Lead gọi `spawn(agent="researcher", task="Trích xuất điểm chính", label="Trích xuất điểm chính")` — hệ thống tự động tạo task theo dõi
-3. Researcher làm việc độc lập, kết quả tự động thông báo đến lead khi xong
-4. Lead gọi `spawn(agent="writer", task="Viết tóm tắt dựa trên: <kết quả researcher>", label="Viết tóm tắt")`
-5. Writer hoàn thành, kết quả tự động thông báo đến lead
+2. Lead gọi `team_tasks(action="create", subject="Trích xuất điểm chính từ bài nghiên cứu", assignee="researcher")` — hệ thống dispatch đến researcher
+3. Researcher nhận task, làm việc độc lập, gọi `team_tasks(action="complete", result="<phát hiện>")` — lead được thông báo
+4. Lead gọi `team_tasks(action="create", subject="Viết tóm tắt", assignee="writer", description="Dùng phát hiện của researcher: <phát hiện>", blocked_by=["<task-id-researcher>"])`
+5. Task của writer tự động unblock khi researcher xong, writer hoàn thành với kết quả
 6. Lead tổng hợp và gửi phản hồi cuối cùng cho người dùng
 
 ## Team so với các Mô hình Delegation Khác
@@ -63,7 +63,7 @@ flowchart TD
 |--------|-----------|-------------------|-----------|
 | **Điều phối** | Lead điều phối qua task board | Parent chờ kết quả | Ngang hàng trực tiếp |
 | **Theo dõi Task** | Task board chung, phụ thuộc, ưu tiên | Không theo dõi | Không theo dõi |
-| **Nhắn tin** | Member dùng mailbox; lead dùng spawn | Chỉ với parent | Chỉ với parent |
+| **Nhắn tin** | Member dùng mailbox; lead dùng team_tasks | Chỉ với parent | Chỉ với parent |
 | **Khả năng mở rộng** | Thiết kế cho 3–10 member | Parent-child đơn giản | Liên kết 1-1 |
 | **Context TEAM.md** | Tất cả member nhận TEAM.md theo vai trò | Không áp dụng | Không áp dụng |
 | **Trường hợp dùng** | Nghiên cứu song song, review nội dung, phân tích | Delegate nhanh & chờ | Chuyển giao hội thoại |

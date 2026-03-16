@@ -217,7 +217,7 @@ Sandbox modes: `off` (exec trực tiếp trên host), `non-main` (sandbox tất 
 
 ---
 
-## Encryption (Managed Mode)
+## Encryption
 
 Secrets lưu trong PostgreSQL được mã hóa AES-256-GCM:
 

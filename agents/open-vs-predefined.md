@@ -172,7 +172,7 @@ Or switch to **predefined** later if the agent outgrows single-user use.
 |---------|----------|
 | User edits disappear after restart | You're using predefined mode — user changes to SOUL.md are overwritten. Switch to open mode or use USER.md for per-user customization |
 | Agent behaves differently per user | Expected in open mode — each user has their own context files. Use predefined if you want consistent behavior |
-| Can't find context files on disk | In managed mode, context files live in the database (`agent_context_files` / `user_context_files`), not on the filesystem |
+| Can't find context files on disk | Context files live in the database (`agent_context_files` / `user_context_files`), not on the filesystem |
 
 ## What's Next
 

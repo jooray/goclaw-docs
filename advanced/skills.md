@@ -107,7 +107,7 @@ The tool returns ranked results with name, description, location path, and BM25 
 
 The index is rebuilt whenever the loader's version counter is bumped (i.e., after any hot-reload event or startup).
 
-## Granting Skills to Agents (Managed Mode)
+## Granting Skills to Agents
 
 Uploaded skills start with **private** visibility — only the uploader can see them. To make a skill available to an agent, you must **grant** it. Granting auto-promotes visibility from `private` to `internal`.
 

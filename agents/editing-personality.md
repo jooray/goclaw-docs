@@ -11,7 +11,7 @@ Your agent's personality emerges from two primary configuration files:
 
 **AGENTS.md** also contributes to the overall persona — it defines conversational rules, memory usage, and group chat behavior. While less about "personality," it shapes how the agent expresses itself in practice. See [Context Files](./context-files.md) for details.
 
-You can edit these files three ways: via the Dashboard UI, the WebSocket API, or directly on disk (in managed mode, edits are stored in the database).
+You can edit these files three ways: via the Dashboard UI, the WebSocket API, or directly on disk. Edits made through the UI or API are stored in the database.
 
 ## SOUL.md — The Personality File
 

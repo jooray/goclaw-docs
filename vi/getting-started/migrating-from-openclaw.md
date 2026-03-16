@@ -20,7 +20,7 @@ GoClaw là phiên bản đa tenant được phát triển từ OpenClaw. Nếu b
 | Hỗ trợ MCP | Có (qua mcporter bridge) | Có (stdio, SSE, streamable-http) |
 | Custom tool | Có (52+ built-in skill) | Có (định nghĩa qua dashboard hoặc API) |
 | Code sandbox | Có (Docker-based) | Có (Docker-based với per-agent config) |
-| Database | SQLite | PostgreSQL (managed mode) |
+| Database | SQLite | PostgreSQL |
 | Channel | 18 (9 core + 9 extension) | 7 (Telegram, Discord, Slack, WhatsApp, Zalo OA, Zalo Personal, Feishu) |
 | Dashboard | Web UI cơ bản | Management dashboard đầy đủ |
 

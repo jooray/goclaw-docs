@@ -24,7 +24,7 @@ GoClaw connects to Google Gemini through its OpenAI-compatible API (`https://gen
 }
 ```
 
-## Managed Mode Setup
+## Dashboard Setup
 
 Go to **Settings → Providers → Gemini** in the dashboard and enter your API key and base URL. Both are stored encrypted with AES-256-GCM.
 

@@ -13,7 +13,7 @@ Personality của agent được định hình bởi hai file cấu hình chính
 
 **AGENTS.md** cũng đóng góp vào persona tổng thể — nó định nghĩa quy tắc trò chuyện, cách dùng bộ nhớ, và hành vi trong group chat. Dù ít liên quan đến "personality" hơn, nhưng nó ảnh hưởng đến cách agent thể hiện trong thực tế. Xem [Context Files](./context-files.md) để biết thêm chi tiết.
 
-Bạn có thể chỉnh sửa hai file này theo ba cách: qua Dashboard UI, WebSocket API, hoặc trực tiếp trên đĩa (trong managed mode, các chỉnh sửa được lưu vào database).
+Bạn có thể chỉnh sửa hai file này theo ba cách: qua Dashboard UI, WebSocket API, hoặc trực tiếp trên đĩa. Các chỉnh sửa qua UI hoặc API được lưu vào database.
 
 ## SOUL.md — File Personality
 

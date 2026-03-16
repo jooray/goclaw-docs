@@ -24,7 +24,7 @@ Groq provides an OpenAI-compatible API that delivers dramatically faster token g
 }
 ```
 
-## Managed Mode Setup
+## Dashboard Setup
 
 Go to **Settings → Providers → Groq** in the dashboard and enter your API key and base URL. Stored encrypted with AES-256-GCM.
 

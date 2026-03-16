@@ -36,7 +36,7 @@ To use a custom base URL (e.g. a proxy):
 }
 ```
 
-## Managed Mode Setup
+## Dashboard Setup
 
 In the GoClaw dashboard go to **Settings → Providers → Anthropic** and enter your API key. The key is encrypted with AES-256-GCM before being stored. Changes take effect immediately without a restart.
 

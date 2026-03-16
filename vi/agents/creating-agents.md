@@ -59,9 +59,9 @@ Từ trang agents trên web dashboard:
 
 Nếu bạn tạo **predefined agent có mô tả**, hệ thống sẽ tự động bắt đầu quá trình "summoning" dựa trên LLM — tạo ra SOUL.md, IDENTITY.md, và tuỳ chọn USER_PREDEFINED.md từ mô tả của bạn.
 
-## HTTP API: Managed Mode
+## HTTP API
 
-Nếu GoClaw đang chạy ở chế độ managed gateway (chỉ API), dùng HTTP:
+Bạn cũng có thể tạo agent qua HTTP API:
 
 ```bash
 curl -X POST http://localhost:8080/v1/agents \

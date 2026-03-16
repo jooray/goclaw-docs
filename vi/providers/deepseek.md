@@ -26,7 +26,7 @@ GoClaw kết nối với DeepSeek qua OpenAI-compatible API của nó, dùng gen
 }
 ```
 
-## Cấu hình qua Managed Mode
+## Cấu hình qua Dashboard
 
 Vào **Settings → Providers → DeepSeek** trong dashboard và nhập API key và base URL. Được lưu mã hóa AES-256-GCM.
 

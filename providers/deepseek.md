@@ -24,7 +24,7 @@ GoClaw connects to DeepSeek via its OpenAI-compatible API using the generic `Ope
 }
 ```
 
-## Managed Mode Setup
+## Dashboard Setup
 
 Go to **Settings → Providers → DeepSeek** in the dashboard and enter your API key and base URL. Stored encrypted with AES-256-GCM.
 

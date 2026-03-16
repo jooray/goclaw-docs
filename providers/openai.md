@@ -36,7 +36,7 @@ The default base URL is `https://api.openai.com/v1`. To use a custom endpoint (e
 }
 ```
 
-## Managed Mode Setup
+## Dashboard Setup
 
 Go to **Settings → Providers → OpenAI** in the dashboard and enter your API key. Keys are encrypted with AES-256-GCM at rest.
 

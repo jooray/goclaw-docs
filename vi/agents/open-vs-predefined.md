@@ -174,7 +174,7 @@ Hoặc chuyển sang **predefined** sau nếu agent vượt ra ngoài phạm vi 
 |---------|----------|
 | Chỉnh sửa của user biến mất sau khi khởi động lại | Bạn đang dùng predefined mode — thay đổi của user trên SOUL.md bị ghi đè. Chuyển sang open mode hoặc dùng USER.md để tuỳ chỉnh theo user |
 | Agent hành xử khác nhau theo từng user | Bình thường trong open mode — mỗi user có context file riêng. Dùng predefined nếu muốn hành vi nhất quán |
-| Không tìm thấy context file trên đĩa | Trong managed mode, context file nằm trong database (`agent_context_files` / `user_context_files`), không phải trên filesystem |
+| Không tìm thấy context file trên đĩa | Context file nằm trong database (`agent_context_files` / `user_context_files`), không phải trên filesystem |
 
 ## Tiếp theo
 

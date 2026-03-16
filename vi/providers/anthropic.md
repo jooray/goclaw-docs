@@ -38,7 +38,7 @@ Anthropic provider là một HTTP client tự viết tay (không dùng SDK bên 
 }
 ```
 
-## Cấu hình qua Managed Mode
+## Cấu hình qua Dashboard
 
 Trong GoClaw dashboard, vào **Settings → Providers → Anthropic** và nhập API key. Key được mã hóa AES-256-GCM trước khi lưu. Thay đổi có hiệu lực ngay mà không cần restart.
 

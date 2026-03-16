@@ -57,9 +57,9 @@ From the agents page in the web dashboard:
 
 If you're creating a **predefined agent with a description**, the system automatically starts LLM-powered "summoning" — it generates SOUL.md, IDENTITY.md, and optionally USER_PREDEFINED.md from your description.
 
-## HTTP API: Managed Mode
+## HTTP API
 
-If GoClaw is running as a managed gateway (API-only), use HTTP:
+You can also create agents via the HTTP API:
 
 ```bash
 curl -X POST http://localhost:8080/v1/agents \

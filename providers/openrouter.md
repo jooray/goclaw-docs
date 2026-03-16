@@ -25,7 +25,7 @@ OpenRouter is an LLM aggregator that exposes a unified OpenAI-compatible endpoin
 
 The default base URL is `https://openrouter.ai/api/v1`. You do not need to set `api_base` unless you are using a proxy.
 
-## Managed Mode Setup
+## Dashboard Setup
 
 Go to **Settings → Providers → OpenRouter** in the dashboard and paste your API key. It is encrypted with AES-256-GCM before storage.
 

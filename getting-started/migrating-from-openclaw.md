@@ -18,7 +18,7 @@ GoClaw is the multi-tenant evolution of OpenClaw. If you've been running OpenCla
 | MCP support | Yes (via mcporter bridge) | Yes (stdio, SSE, streamable-http) |
 | Custom tools | Yes (52+ built-in skills) | Yes (define via dashboard or API) |
 | Code sandbox | Yes (Docker-based) | Yes (Docker-based with per-agent config) |
-| Database | SQLite | PostgreSQL (managed mode) |
+| Database | SQLite | PostgreSQL |
 | Channels | 18 (9 core + 9 extensions) | 7 (Telegram, Discord, Slack, WhatsApp, Zalo OA, Zalo Personal, Feishu) |
 | Dashboard | Basic web UI | Full management dashboard |
 

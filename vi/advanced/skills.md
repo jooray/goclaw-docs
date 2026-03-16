@@ -109,7 +109,7 @@ Tool trả về kết quả được xếp hạng với tên, mô tả, đườn
 
 Chỉ mục được rebuild bất cứ khi nào bộ đếm version của loader tăng (tức là sau bất kỳ sự kiện hot-reload hoặc khởi động nào).
 
-## Cấp quyền Skill cho Agent (Managed Mode)
+## Cấp quyền Skill cho Agent
 
 Skill được upload mặc định có visibility **private** — chỉ người upload mới thấy. Để agent có thể sử dụng skill, bạn phải **grant** (cấp quyền) cho agent đó. Việc grant tự động chuyển visibility từ `private` sang `internal`.
 

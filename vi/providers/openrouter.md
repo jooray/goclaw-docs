@@ -27,7 +27,7 @@ OpenRouter là một LLM aggregator cung cấp một unified endpoint tương th
 
 Base URL mặc định là `https://openrouter.ai/api/v1`. Không cần đặt `api_base` trừ khi bạn dùng proxy.
 
-## Cấu hình qua Managed Mode
+## Cấu hình qua Dashboard
 
 Vào **Settings → Providers → OpenRouter** trong dashboard và dán API key. Key được mã hóa AES-256-GCM trước khi lưu.
 

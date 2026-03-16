@@ -44,9 +44,9 @@ Add your API key under `providers.<name>`:
 
 The `api_base` field is optional — each provider has a built-in default endpoint.
 
-### Managed mode (dashboard / llm_providers table)
+### Dashboard (llm_providers table)
 
-In managed mode, providers are stored in the `llm_providers` PostgreSQL table. API keys are encrypted at rest using AES-256-GCM. You can add, edit, or remove providers from the dashboard without restarting GoClaw. Changes take effect on the next request.
+Providers can also be stored in the `llm_providers` PostgreSQL table. API keys are encrypted at rest using AES-256-GCM. You can add, edit, or remove providers from the dashboard without restarting GoClaw. Changes take effect on the next request.
 
 ## Retry Logic
 

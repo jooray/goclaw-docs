@@ -6,25 +6,33 @@ Delegation allows the lead to spawn work on member agents. Handoff transfers con
 
 ```mermaid
 flowchart TD
-    LEAD["Lead receives user request"] --> CREATE["1. Create task on board<br/>team_tasks action=create<br/>→ returns task_id"]
-    CREATE --> DELEGATE["2. Delegate to member<br/>spawn agent=member,<br/>team_task_id=task_id"]
-    DELEGATE --> LANE["Scheduled through<br/>delegate lane"]
-    LANE --> MEMBER["Member agent executes<br/>in isolated session"]
-    MEMBER --> COMPLETE["3. Task auto-completed<br/>with delegation result"]
-    COMPLETE --> CLEANUP["Session cleaned up"]
+    LEAD["Lead receives user request"] --> DELEGATE["1. Delegate to member<br/>spawn agent=member,<br/>task='do the work'"]
+    DELEGATE --> MEMBER["Member agent executes<br/>in isolated session"]
+    MEMBER --> COMPLETE["2. Task auto-completed<br/>with delegation result"]
+    COMPLETE --> ANNOUNCE["3. Result announced<br/>back to lead"]
 
     subgraph "Parallel Delegation"
-        DELEGATE2["spawn member_A, task_id=1"] --> RUNA["Member A works"]
-        DELEGATE3["spawn member_B, task_id=2"] --> RUNB["Member B works"]
-        RUNA --> COLLECT["Parallel execution"]
+        DELEGATE2["spawn member_A"] --> RUNA["Member A works"]
+        DELEGATE3["spawn member_B"] --> RUNB["Member B works"]
+        RUNA --> COLLECT["Results accumulate"]
         RUNB --> COLLECT
-        COLLECT --> ANNOUNCE["4. Single combined<br/>announcement to lead"]
+        COLLECT --> ANNOUNCE2["Single combined<br/>announcement to lead"]
     end
 ```
 
-## Mandatory Task Linking
+## Task Linking
 
-**Every delegation must link to a team task**. The system enforces this:
+Delegations can optionally link to a team task via `team_task_id`. For v2 teams, **if you omit `team_task_id`, the system auto-creates a task** — you don't need a separate create step:
+
+```json
+{
+  "action": "spawn",
+  "agent": "analyst_agent",
+  "task": "Analyze the market trends in the Q1 report"
+}
+```
+
+The system auto-creates a task and links the delegation. You can also provide an explicit task ID:
 
 ```json
 {
@@ -35,14 +43,13 @@ flowchart TD
 }
 ```
 
-**If task_id is missing**:
-- Delegation is rejected with error message
-- Error includes pending tasks to help LLM self-correct
-- Lead must create task first, then retry delegation
+**If `team_task_id` is invalid** or from a wrong team:
+- Delegation rejected with helpful error message
+- Error includes guidance to omit `team_task_id` to auto-create
 
-**If task_id is invalid** or from wrong team:
-- Delegation rejected
-- Helpful error with list of valid tasks
+**Guards enforced**:
+- Cannot reuse a completed or cancelled task ID
+- Cannot reuse an in-progress task ID (each spawn needs its own task)
 
 This ensures every piece of work is tracked on the task board.
 
@@ -65,13 +72,11 @@ Parent waits for result before continuing:
 - Lead blocks until member finishes
 - Result returned directly to lead
 - Best for quick tasks (< 2 minutes)
-- Task auto-claimed and auto-completed
-
-**Timing**: If task takes >30 seconds, lead receives periodic progress notifications.
+- Task auto-claimed and auto-completed on success
 
 ### Async Delegation
 
-Parent spawns work in background, gets a delegation ID, polls for result:
+Parent spawns work in the background and receives the result via a system announcement when complete:
 
 ```json
 {
@@ -83,25 +88,24 @@ Parent spawns work in background, gets a delegation ID, polls for result:
 }
 ```
 
-- Lead gets delegation ID immediately
+- Lead gets a delegation ID immediately
 - Lead can continue with other work
-- Periodic progress updates (30-second intervals)
-- Result announced when complete
+- Periodic progress notifications sent to chat (every 30 seconds, if enabled)
+- Result announced when complete via a system message to the lead
 
-**Response**:
-```
-Delegation started: d-abc123def456
-You will receive progress updates while the agent works.
-Task: Deep research into market trends
-Agent: analyst_agent
-Status: running
+**Response** (delegation ID for tracking):
+```json
+{
+  "delegation_id": "abc123def456",
+  "team_task_id": "550e8400-e29b-41d4-a716-446655440000"
+}
 ```
 
 ## Parallel Delegation Batching
 
-When lead delegates to multiple members simultaneously, results are collected:
+When lead delegates to multiple members simultaneously, results are collected and announced together:
 
-1. Each delegation runs independently in the delegate lane
+1. Each delegation runs independently
 2. Intermediate completions accumulate results (artifacts)
 3. When **last sibling** finishes, all results are collected
 4. Single combined announcement delivered to lead
@@ -109,12 +113,9 @@ When lead delegates to multiple members simultaneously, results are collected:
 **Example**:
 
 ```json
-// Lead creates 2 tasks and delegates to 2 members simultaneously
-{"action": "create", "subject": "Extract facts"} → task_1
-{"action": "create", "subject": "Extract opinions"} → task_2
-
-{"action": "spawn", "agent": "analyst1", "team_task_id": "task_1"}
-{"action": "spawn", "agent": "analyst2", "team_task_id": "task_2"}
+// Lead delegates to 2 members simultaneously
+{"action": "spawn", "agent": "analyst1", "task": "Extract facts"}
+{"action": "spawn", "agent": "analyst2", "task": "Extract opinions"}
 
 // Results announced together:
 // "analyst1 (facts extraction): ..."
@@ -143,11 +144,12 @@ When an agent has too many targets for static `AGENTS.md` (>15), use delegation 
 
 ```json
 {
-  "action": "delegate_search",
   "query": "data analysis and visualization",
   "max_results": 5
 }
 ```
+
+Call the `delegate_search` tool with the above parameters.
 
 **What it searches**:
 - Agent name and key (full-text search)
@@ -160,11 +162,11 @@ When an agent has too many targets for static `AGENTS.md` (>15), use delegation 
   "agents": [
     {
       "agent_key": "analyst_agent",
-      "agent_name": "Data Analyst",
-      "description": "Analyzes data and creates visualizations",
-      "can_delegate": true
+      "display_name": "Data Analyst",
+      "frontmatter": "Analyzes data and creates visualizations"
     }
-  ]
+  ],
+  "count": 1
 }
 ```
 
@@ -182,10 +184,10 @@ Each delegation link (lead → member) can have its own access control:
 ```
 
 **Concurrency limits**:
-- Per-link: 3 simultaneous delegations from lead to one member
-- Per-agent: 5 total concurrent delegations targeting any single member
+- Per-link: configurable via `max_concurrent` on the agent link
+- Per-agent: default 5 total concurrent delegations targeting any single member (configurable via agent's `max_delegation_load`)
 
-When limits hit, error message: `"Agent at capacity (5/5). Try a different agent or handle it yourself."`
+When limits hit, error message: `"Agent at capacity. Try a different agent or handle it yourself."`
 
 ## Handoff: Conversation Transfer
 
@@ -193,12 +195,14 @@ Transfer conversation control to another agent without interrupting the user:
 
 ```json
 {
-  "action": "handoff",
+  "action": "transfer",
   "agent": "specialist_agent",
   "reason": "You need specialist expertise for the next part of your request",
   "transfer_context": true
 }
 ```
+
+Call the `handoff` tool with the above parameters.
 
 ### What Happens
 
@@ -207,12 +211,13 @@ Transfer conversation control to another agent without interrupting the user:
 3. Target agent receives handoff notification with context
 4. Event broadcast to UI
 5. User's next message routes to new agent
+6. Deliverable workspace files copied to the target agent's team workspace
 
 ### Handoff Parameters
 
 - `action`: `transfer` (default) or `clear`
-- `agent`: Target agent key (required)
-- `reason`: Why the handoff (required)
+- `agent`: Target agent key (required for `transfer`)
+- `reason`: Why the handoff (required for `transfer`)
 - `transfer_context`: Pass conversation summary (default true)
 
 ### Clear a Handoff
@@ -227,7 +232,7 @@ Messages will route to default agent for this chat.
 
 ### Handoff Messaging
 
-Handoff notification includes:
+Handoff notification sent to the target agent:
 ```
 [Handoff from researcher_agent]
 Reason: You need specialist expertise for the next part of your request
@@ -254,7 +259,6 @@ For iterative work, use the evaluate pattern:
   "action": "spawn",
   "agent": "generator_agent",
   "task": "Generate initial proposal",
-  "team_task_id": "task_1",
   "mode": "async"
 }
 
@@ -264,34 +268,32 @@ For iterative work, use the evaluate pattern:
   "action": "spawn",
   "agent": "evaluator_agent",
   "task": "Review proposal and provide feedback",
-  "team_task_id": "task_2",
   "context": "[previous result from generator]"
 }
 
 // Generator refines based on feedback...
 ```
 
-**Max rounds**: 5 iterations (prevent infinite loops). After 5 rounds, ask user for direction.
+**Note**: The system does not enforce a maximum number of iterations for this pattern. Set your own limit in the lead's instructions to avoid infinite loops.
 
 ## Progress Notifications
 
-For async delegations, receive periodic updates:
+For async delegations, the lead receives periodic grouped updates (if progress notifications are enabled for the team):
 
 ```
-Progress update: analyst_agent still working on task
-Task: Deep research into market trends
-Started: 2 minutes ago
-Status: running
+🏗 Your team is working on it...
+- Data Analyst (analyst_agent): 2m15s
+- Report Writer (writer_agent): 45s
 ```
 
-**Interval**: 30 seconds (configurable via team settings)
+**Interval**: 30 seconds. Enabled/disabled via team settings (`progress_notifications`).
 
 ## Best Practices
 
-1. **Create task before delegating**: Task board must have task first
+1. **Omit `team_task_id` for simplicity**: v2 teams auto-create tasks on delegation
 2. **Use sync for quick tasks**: < 2 minutes
 3. **Use async for long tasks**: > 2 minutes, parallel work
 4. **Batch parallel work**: Delegate to multiple members simultaneously
 5. **Link dependencies**: Use `blocked_by` on task board to coordinate order
 6. **Handle handoffs gracefully**: Notify user of transfer; pass context
-7. **Set max iterations**: Prevent infinite evaluate loops
+7. **Set iteration limits in instructions**: Prevent infinite evaluate loops

@@ -86,8 +86,11 @@ const DOC_MAP = {
   'provider-cohere': docEntry('providers', 'cohere', 'Cohere'),
   'provider-perplexity': docEntry('providers', 'perplexity', 'Perplexity'),
   'provider-dashscope': docEntry('providers', 'dashscope', 'DashScope (Qwen)'),
+  'provider-bailian': docEntry('providers', 'bailian', 'Bailian'),
+  'provider-zai': docEntry('providers', 'zai', 'Zai'),
   'provider-claude-cli': docEntry('providers', 'claude-cli', 'Claude CLI'),
   'provider-codex': docEntry('providers', 'codex-chatgpt', 'Codex / ChatGPT'),
+  'provider-acp': docEntry('providers', 'acp', 'ACP (Agent Client Protocol)', 'ACP (Agent Client Protocol)'),
   'provider-custom': docEntry('providers', 'custom-provider', 'Custom / OpenAI-Compatible', 'Tùy chỉnh / OpenAI-Compatible'),
 
   // Channels
@@ -97,6 +100,7 @@ const DOC_MAP = {
   'channel-feishu': docEntry('channels', 'feishu', 'Feishu / Lark'),
   'channel-zalo-oa': docEntry('channels', 'zalo-oa', 'Zalo OA'),
   'channel-zalo-personal': docEntry('channels', 'zalo-personal', 'Zalo Personal', 'Zalo Cá nhân'),
+  'channel-slack': docEntry('channels', 'slack', 'Slack'),
   'channel-whatsapp': docEntry('channels', 'whatsapp', 'WhatsApp'),
   'channel-websocket': docEntry('channels', 'websocket', 'WebSocket'),
   'channel-browser-pairing': docEntry('channels', 'browser-pairing', 'Browser Pairing', 'Ghép nối trình duyệt'),
@@ -122,8 +126,13 @@ const DOC_MAP = {
   'extended-thinking': docEntry('advanced', 'extended-thinking', 'Extended Thinking', 'Suy nghĩ mở rộng'),
   'hooks-quality-gates': docEntry('advanced', 'hooks-quality-gates', 'Hooks & Quality Gates', 'Hook & Cổng chất lượng'),
   'authentication': docEntry('advanced', 'authentication', 'Authentication & OAuth', 'Xác thực & OAuth'),
+  'api-keys-rbac': docEntry('advanced', 'api-keys-rbac', 'API Keys & RBAC', 'API Keys & RBAC'),
+  'cli-credentials': docEntry('advanced', 'cli-credentials', 'CLI Credentials', 'CLI Credentials'),
   'exec-approval': docEntry('advanced', 'exec-approval', 'Exec Approval', 'Phê duyệt thực thi'),
+  'context-pruning': docEntry('advanced', 'context-pruning', 'Context Pruning', 'Cắt tỉa ngữ cảnh'),
+  'channel-instances': docEntry('advanced', 'channel-instances', 'Channel Instances', 'Channel Instances'),
   'usage-quota': docEntry('advanced', 'usage-quota', 'Usage & Quota', 'Sử dụng & Hạn mức'),
+  'cost-tracking': docEntry('advanced', 'cost-tracking', 'Cost Tracking', 'Theo dõi chi phí'),
 
   // Deployment
   'deploy-docker-compose': docEntry('deployment', 'docker-compose', 'Docker Compose', 'Docker Compose'),

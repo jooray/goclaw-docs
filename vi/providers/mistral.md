@@ -26,7 +26,7 @@ GoClaw kết nối với Mistral AI dùng generic `OpenAIProvider` trỏ đến 
 }
 ```
 
-## Cấu hình qua Managed Mode
+## Cấu hình qua Dashboard
 
 Vào **Settings → Providers → Mistral** trong dashboard và nhập API key và base URL. Được lưu mã hóa AES-256-GCM.
 

@@ -46,9 +46,9 @@ Thêm API key của bạn vào `providers.<name>`:
 
 Trường `api_base` là tùy chọn — mỗi provider đã có endpoint mặc định sẵn.
 
-### Managed mode (dashboard / bảng llm_providers)
+### Dashboard (bảng llm_providers)
 
-Trong managed mode, providers được lưu trong bảng `llm_providers` của PostgreSQL. API key được mã hóa khi lưu bằng AES-256-GCM. Bạn có thể thêm, sửa, hoặc xóa provider từ dashboard mà không cần khởi động lại GoClaw. Thay đổi có hiệu lực ở request tiếp theo.
+Providers cũng có thể được lưu trong bảng `llm_providers` của PostgreSQL. API key được mã hóa khi lưu bằng AES-256-GCM. Bạn có thể thêm, sửa, hoặc xóa provider từ dashboard mà không cần khởi động lại GoClaw. Thay đổi có hiệu lực ở request tiếp theo.
 
 ## Retry Logic
 

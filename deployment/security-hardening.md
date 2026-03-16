@@ -215,7 +215,7 @@ Sandbox modes: `off` (direct host exec), `non-main` (sandbox all except the main
 
 ---
 
-## Encryption (Managed Mode)
+## Encryption
 
 Secrets stored in PostgreSQL are encrypted with AES-256-GCM:
 

@@ -24,7 +24,7 @@ curl -X POST /v1/agents \
     "agent_key": "support-bot",
     "agent_type": "predefined",
     "provider": "anthropic",
-    "model": "claude-3-5-sonnet-20241022",
+    "model": "claude-sonnet-4-6",
     "other_config": {
       "description": "A patient support agent that helps customers troubleshoot product issues. Warm, clear, escalates complex problems. Answers in customer'\''s language."
     }
@@ -201,7 +201,7 @@ curl -X POST http://localhost:8080/v1/agents \
     "agent_key": "research",
     "agent_type": "predefined",
     "provider": "anthropic",
-    "model": "claude-3-5-sonnet-20241022",
+    "model": "claude-sonnet-4-6",
     "other_config": {
       "description": "Research assistant that helps users gather and synthesize information from multiple sources. Bold, opinioned, tries novel connections. Prefers academic sources. Answers in the user'\''s language."
     }
@@ -238,7 +238,7 @@ curl -X POST http://localhost:8080/v1/agents \
     "agent_key": "alice-assistant",
     "agent_type": "open",
     "provider": "anthropic",
-    "model": "claude-3-5-sonnet-20241022"
+    "model": "claude-sonnet-4-6"
   }'
 ```
 

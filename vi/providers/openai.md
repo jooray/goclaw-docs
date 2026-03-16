@@ -38,7 +38,7 @@ Base URL mặc định là `https://api.openai.com/v1`. Để dùng endpoint tù
 }
 ```
 
-## Cấu hình qua Managed Mode
+## Cấu hình qua Dashboard
 
 Vào **Settings → Providers → OpenAI** trong dashboard và nhập API key. Key được mã hóa AES-256-GCM khi lưu.
 

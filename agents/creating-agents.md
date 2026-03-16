@@ -31,7 +31,7 @@ This launches a step-by-step wizard. You'll be asked for:
 1. **Agent name** — used to generate a normalized ID (lowercase, hyphens). Example: "coder" → `coder`
 2. **Display name** — shown in dashboards. Can be "Code Assistant" for the same `coder` agent
 3. **Provider** — LLM provider (optional: inherit from defaults, or choose OpenRouter, Anthropic, OpenAI, Groq, DeepSeek, Gemini, Mistral)
-4. **Model** — model name (optional: inherit from defaults, or specify like `claude-3-5-sonnet`)
+4. **Model** — model name (optional: inherit from defaults, or specify like `claude-sonnet-4-6`)
 5. **Workspace directory** — where context files live. Defaults to `~/.goclaw/workspace-{agent-id}`
 
 Once created, restart the gateway to activate the agent:
@@ -71,7 +71,7 @@ curl -X POST http://localhost:8080/v1/agents \
     "display_name": "Research Assistant",
     "agent_type": "open",
     "provider": "anthropic",
-    "model": "claude-3-5-sonnet-20241022",
+    "model": "claude-sonnet-4-6",
     "context_window": 200000,
     "max_tool_iterations": 20,
     "workspace": "~/.goclaw/research-workspace"
@@ -100,7 +100,7 @@ curl -X POST http://localhost:8080/v1/agents \
 | `agent_key` | string | Unique slug (lowercase, alphanumeric, hyphens) | `code-bot`, `faq-helper` |
 | `display_name` | string | Human-readable name shown in UI | `Code Assistant` |
 | `provider` | string | LLM provider (overrides default) | `anthropic`, `openrouter` |
-| `model` | string | Model identifier (overrides default) | `claude-3-5-sonnet-20241022` |
+| `model` | string | Model identifier (overrides default) | `claude-sonnet-4-6` |
 
 ## Optional Fields Reference
 
@@ -126,13 +126,13 @@ $ ./goclaw agent add
 Agent name: researcher
 Display name: Research Assistant
 Provider: (inherit: openrouter)
-Model: (inherit: claude-3-5-sonnet-20241022)
+Model: (inherit: claude-sonnet-4-6)
 Workspace directory: ~/.goclaw/workspace-researcher
 
 Agent "researcher" created successfully.
   Display name: Research Assistant
   Provider: (inherit: openrouter)
-  Model: (inherit: claude-3-5-sonnet-20241022)
+  Model: (inherit: claude-sonnet-4-6)
   Workspace: ~/.goclaw/workspace-researcher
 
 Restart the gateway to activate this agent.
@@ -150,7 +150,7 @@ curl -X POST http://localhost:8080/v1/agents \
     "display_name": "FAQ Assistant",
     "agent_type": "predefined",
     "provider": "anthropic",
-    "model": "claude-3-5-sonnet-20241022",
+    "model": "claude-sonnet-4-6",
     "other_config": {
       "description": "A friendly FAQ bot that answers common questions about our product. Organized, helpful, patient. Answers in the user'\''s language."
     }

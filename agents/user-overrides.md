@@ -26,7 +26,7 @@ CREATE TABLE user_agent_overrides (
   agent_id UUID NOT NULL,
   user_id VARCHAR NOT NULL,
   provider VARCHAR NOT NULL,          -- e.g. "anthropic", "openai"
-  model VARCHAR NOT NULL,             -- e.g. "claude-3-5-sonnet", "gpt-4o"
+  model VARCHAR NOT NULL,             -- e.g. "claude-sonnet-4-6", "gpt-4o"
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
@@ -135,7 +135,7 @@ Check your gateway config to see which providers/models are available. Common on
 
 | Provider | Models |
 |----------|--------|
-| **anthropic** | claude-3-5-sonnet, claude-3-5-haiku, claude-3-opus |
+| **anthropic** | claude-sonnet-4-6, claude-haiku-4-5, claude-opus-4-6 |
 | **openai** | gpt-4o, gpt-4-turbo, gpt-3.5-turbo |
 | **openai-compat** | depends on your custom provider (e.g., local Ollama) |
 

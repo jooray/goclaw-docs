@@ -33,7 +33,7 @@ Lệnh này mở một wizard từng bước. Bạn sẽ được hỏi:
 1. **Tên agent** — dùng để tạo ID chuẩn hoá (chữ thường, dấu gạch ngang). Ví dụ: "coder" → `coder`
 2. **Tên hiển thị** — hiển thị trên dashboard. Có thể là "Code Assistant" cho cùng agent `coder`
 3. **Provider** — LLM provider (tuỳ chọn: kế thừa từ mặc định, hoặc chọn OpenRouter, Anthropic, OpenAI, Groq, DeepSeek, Gemini, Mistral)
-4. **Model** — tên model (tuỳ chọn: kế thừa từ mặc định, hoặc chỉ định như `claude-3-5-sonnet`)
+4. **Model** — tên model (tuỳ chọn: kế thừa từ mặc định, hoặc chỉ định như `claude-sonnet-4-6`)
 5. **Thư mục workspace** — nơi lưu context file. Mặc định là `~/.goclaw/workspace-{agent-id}`
 
 Sau khi tạo xong, khởi động lại gateway để kích hoạt agent:
@@ -73,7 +73,7 @@ curl -X POST http://localhost:8080/v1/agents \
     "display_name": "Research Assistant",
     "agent_type": "open",
     "provider": "anthropic",
-    "model": "claude-3-5-sonnet-20241022",
+    "model": "claude-sonnet-4-6",
     "context_window": 200000,
     "max_tool_iterations": 20,
     "workspace": "~/.goclaw/research-workspace"
@@ -102,7 +102,7 @@ curl -X POST http://localhost:8080/v1/agents \
 | `agent_key` | string | Slug duy nhất (chữ thường, chữ và số, dấu gạch ngang) | `code-bot`, `faq-helper` |
 | `display_name` | string | Tên hiển thị trên giao diện | `Code Assistant` |
 | `provider` | string | LLM provider (ghi đè mặc định) | `anthropic`, `openrouter` |
-| `model` | string | Định danh model (ghi đè mặc định) | `claude-3-5-sonnet-20241022` |
+| `model` | string | Định danh model (ghi đè mặc định) | `claude-sonnet-4-6` |
 
 ## Tham chiếu trường tuỳ chọn
 
@@ -128,13 +128,13 @@ $ ./goclaw agent add
 Agent name: researcher
 Display name: Research Assistant
 Provider: (inherit: openrouter)
-Model: (inherit: claude-3-5-sonnet-20241022)
+Model: (inherit: claude-sonnet-4-6)
 Workspace directory: ~/.goclaw/workspace-researcher
 
 Agent "researcher" created successfully.
   Display name: Research Assistant
   Provider: (inherit: openrouter)
-  Model: (inherit: claude-3-5-sonnet-20241022)
+  Model: (inherit: claude-sonnet-4-6)
   Workspace: ~/.goclaw/workspace-researcher
 
 Restart the gateway to activate this agent.
@@ -152,7 +152,7 @@ curl -X POST http://localhost:8080/v1/agents \
     "display_name": "FAQ Assistant",
     "agent_type": "predefined",
     "provider": "anthropic",
-    "model": "claude-3-5-sonnet-20241022",
+    "model": "claude-sonnet-4-6",
     "other_config": {
       "description": "A friendly FAQ bot that answers common questions about our product. Organized, helpful, patient. Answers in the user'\''s language."
     }

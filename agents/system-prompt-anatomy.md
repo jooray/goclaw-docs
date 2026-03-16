@@ -318,7 +318,7 @@ To customize how the system prompt is built:
   "agents": {
     "research-bot": {
       "provider": "anthropic",
-      "model": "claude-3-5-sonnet-20241022",
+      "model": "claude-sonnet-4-6",
       "context_window": 200000,
       "compaction_config": {
         "system_prompt_budget_tokens": 24000,

@@ -28,7 +28,7 @@ CREATE TABLE user_agent_overrides (
   agent_id UUID NOT NULL,
   user_id VARCHAR NOT NULL,
   provider VARCHAR NOT NULL,          -- ví dụ: "anthropic", "openai"
-  model VARCHAR NOT NULL,             -- ví dụ: "claude-3-5-sonnet", "gpt-4o"
+  model VARCHAR NOT NULL,             -- ví dụ: "claude-sonnet-4-6", "gpt-4o"
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
@@ -137,7 +137,7 @@ Kiểm tra cấu hình gateway của bạn để xem provider/model nào có s�
 
 | Provider | Models |
 |----------|--------|
-| **anthropic** | claude-3-5-sonnet, claude-3-5-haiku, claude-3-opus |
+| **anthropic** | claude-sonnet-4-6, claude-haiku-4-5, claude-opus-4-6 |
 | **openai** | gpt-4o, gpt-4-turbo, gpt-3.5-turbo |
 | **openai-compat** | tuỳ thuộc provider tuỳ chỉnh của bạn (ví dụ: Ollama cục bộ) |
 

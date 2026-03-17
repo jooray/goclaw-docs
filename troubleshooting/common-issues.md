@@ -16,6 +16,9 @@ This page covers issues you're likely to hit when starting GoClaw for the first 
 | `open discord session` error | Invalid Discord bot token | Recheck `GOCLAW_DISCORD_TOKEN` in your env |
 | `sandbox disabled: Docker not available` | Docker not installed/running when sandbox mode is set | Install Docker or set `sandbox.mode: "off"` in config |
 | Port already in use | Another process on the same port | Change `GOCLAW_PORT` (default `8080`) or kill the conflicting process |
+| `database schema is outdated` | DB migrations not run after binary upgrade | Run `./goclaw upgrade` (or set `GOCLAW_AUTO_UPGRADE=true`) |
+| `database schema is dirty` | A previous migration failed partway | Run `./goclaw migrate force <version-1>` then `./goclaw upgrade` |
+| `database schema is newer than this binary` | Running an older binary against a newer DB | Upgrade your GoClaw binary to the latest version |
 
 **Quick check:** GoClaw auto-detects missing provider config and prints a helpful message:
 
@@ -35,7 +38,8 @@ The WebSocket endpoint is `ws://localhost:8080/ws`. The first frame sent **must*
 | `invalid frame` / `malformed request` | Bad JSON | Validate your frame against `pkg/protocol` wire types |
 | `websocket read error` (log) | Client closed abruptly | Normal for browser tab closes; check client-side reconnect logic |
 | Rate limited (no response) | Too many requests per user | Gateway enforces per-user token-bucket rate limiting; back off and retry |
-| CORS block in browser | Browser enforcing same-origin | Add your frontend origin to `gateway.cors_origins` in config |
+| CORS block in browser | Browser enforcing same-origin | Add your frontend origin to `gateway.allowed_origins` in config |
+| Message exceeds 512 KB | WebSocket frame larger than server limit | Split large payloads; GoClaw closes connections with `ErrReadLimit` when exceeded |
 
 ## Agent Not Responding
 
@@ -56,6 +60,21 @@ GoClaw retries on `429`, `500`, `502`, `503`, `504`, and network errors (connect
 | Memory grows with session count | Many open sessions cached in-memory | Sessions are Postgres-backed; check session cleanup intervals in config |
 | Large embeddings footprint | pgvector index loading | Normal for large memory collections; ensure `WORK_MEM` is set in Postgres |
 | Log buffer growing | `LogTee` captures all logs for UI streaming | Not a leak; bounded per-client. Check for stuck WS clients |
+
+## Diagnostics
+
+Run `./goclaw doctor` for a quick health check. It verifies:
+
+- Config file presence and parse
+- PostgreSQL connectivity and schema version
+- Provider API keys (masked)
+- Channel credentials
+- External tools (Docker, curl, git)
+- Workspace directory
+
+```
+./goclaw doctor
+```
 
 ## What's Next
 

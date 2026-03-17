@@ -21,11 +21,14 @@ Một agent duy nhất trên Telegram cho sử dụng cá nhân.
       "provider": "openrouter",
       "model": "anthropic/claude-sonnet-4-5-20250929",
       "agent_type": "open",
-      "memory": true
+      "memory": { "enabled": true }
     }
   },
   "channels": {
-    "telegram": { "enabled": true, "token": "env:TELEGRAM_BOT_TOKEN" }
+    "telegram": {
+      "enabled": true,
+      "token": "" // từ @BotFather
+    }
   }
 }
 ```
@@ -43,15 +46,18 @@ Một agent predefined dùng chung cho cả nhóm phát triển trên Discord.
       "code-bot": {
         "agent_type": "predefined",
         "provider": "anthropic",
-        "model": "claude-opus-4-20250514",
-        "tools_profile": "coding",
+        "model": "claude-opus-4-6",
+        "tools": { "profile": "coding" },
         "temperature": 0.3,
         "max_tool_iterations": 50
       }
     }
   },
   "channels": {
-    "discord": { "enabled": true, "token": "env:DISCORD_BOT_TOKEN" }
+    "discord": {
+      "enabled": true,
+      "token": "" // từ Discord Developer Portal
+    }
   }
 }
 ```
@@ -68,13 +74,19 @@ Một agent có mặt trên Telegram, Discord, và WebSocket cùng lúc.
     "list": {
       "support-bot": {
         "agent_type": "predefined",
-        "tools_profile": "messaging"
+        "tools": { "profile": "messaging" }
       }
     }
   },
   "channels": {
-    "telegram": { "enabled": true, "token": "env:TELEGRAM_BOT_TOKEN" },
-    "discord": { "enabled": true, "token": "env:DISCORD_BOT_TOKEN" }
+    "telegram": {
+      "enabled": true,
+      "token": "" // Telegram bot token
+    },
+    "discord": {
+      "enabled": true,
+      "token": "" // Discord bot token
+    }
   }
 }
 ```
@@ -91,17 +103,17 @@ Một lead agent phân công các task chuyên biệt cho các agent khác.
     "list": {
       "lead": {
         "provider": "anthropic",
-        "model": "claude-opus-4-20250514"
+        "model": "claude-opus-4-6"
       },
       "researcher": {
         "provider": "openrouter",
         "model": "google/gemini-2.5-pro",
-        "tools_profile": "coding"
+        "tools": { "profile": "coding" }
       },
       "writer": {
         "provider": "anthropic",
         "model": "claude-sonnet-4-5-20250929",
-        "tools_profile": "messaging"
+        "tools": { "profile": "messaging" }
       }
     }
   }
@@ -109,18 +121,6 @@ Một lead agent phân công các task chuyên biệt cho các agent khác.
 ```
 
 **Những gì bạn có:** Agent lead điều phối công việc, delegate nghiên cứu cho agent chạy Gemini và các task viết lách cho agent chạy Claude. Mỗi agent dùng model phù hợp nhất cho vai trò của nó.
-
-## Ảnh chụp màn hình Dashboard
-
-Web dashboard của GoClaw cung cấp quản lý trực quan cho tất cả tính năng:
-
-- **Agent Management** — Tạo, cấu hình và kiểm tra agent
-- **Channel Configuration** — Kết nối các nền tảng nhắn tin
-- **Traces Viewer** — Theo dõi các lệnh gọi LLM, chi phí và hiệu suất
-- **Team Board** — Quản lý agent team và phân công task
-- **Skills Browser** — Tải lên và tìm kiếm agent skill
-
-Ảnh chụp màn hình có trong thư mục `images/dashboard/`.
 
 ## Cộng đồng
 

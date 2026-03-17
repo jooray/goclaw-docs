@@ -100,6 +100,38 @@ Provider `codex` (OpenAI Codex CLI) cũng shell ra binary local.
 | Auth failure | CLI chưa xác thực | Chạy `codex auth` hoặc đặt `OPENAI_API_KEY` trong environment |
 | Stream read error | Binary crash giữa stream | Kiểm tra tương thích phiên bản binary; cập nhật Codex CLI |
 
+## ACP Provider
+
+Provider `acp` (Agent Client Protocol) điều phối bất kỳ coding agent tương thích ACP nào (Claude Code, Codex CLI, Gemini CLI) như một subprocess dùng JSON-RPC 2.0 qua stdin/stdout. Provider này không cần API key — binary agent tự quản lý xác thực.
+
+Cấu hình trong `config.json` dưới `providers.acp`:
+
+```json
+"acp": {
+  "binary": "claude",
+  "args": [],
+  "model": "claude",
+  "work_dir": "",
+  "idle_ttl": "5m",
+  "perm_mode": "approve-all"
+}
+```
+
+| Vấn đề | Nguyên nhân | Cách xử lý |
+|--------|-------------|------------|
+| `acp: binary not found, skipping` | Đường dẫn binary không tồn tại hoặc không executable | Kiểm tra binary đã cài và trường `binary` là đường dẫn đúng hoặc tên trong `$PATH` |
+| `acp: spawn failed` | Subprocess không khởi động được | Kiểm tra binary có thể chạy; chạy thủ công để xem lỗi khởi động |
+| `acp: prompt failed` | Lỗi giao tiếp JSON-RPC qua stdin/stdout | Kiểm tra log subprocess; đảm bảo phiên bản binary hỗ trợ ACP protocol |
+| `acp: session_key required in options` | Không có session key trong request | ACP yêu cầu session key — đảm bảo agent config truyền `session_key` trong options |
+| `acp: no user message in request` | Nội dung request rỗng | Đảm bảo chat request có user message |
+| Provider không có trong dashboard | Trường `binary` chưa đặt trong config | Đặt `providers.acp.binary` trong `config.json` và restart |
+
+**Log khởi động khi ACP đăng ký thành công:**
+
+```
+INFO registered provider name=acp binary=claude
+```
+
 ## Tiếp theo
 
 - [Vấn đề database](database.md)

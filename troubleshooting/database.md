@@ -18,6 +18,15 @@ GoClaw requires PostgreSQL 15+ with the `pgvector` and `pgcrypto` extensions. Th
 
 GoClaw uses a fixed connection pool: **25 max open connections**, **10 max idle connections**. Adjust `max_connections` in `postgresql.conf` if you run multiple GoClaw instances.
 
+**Connection pool exhaustion symptoms:** If all 25 connections are in use, new requests queue until a connection frees. Symptoms include sudden query latency spikes, timeout errors, and log lines like `pq: sorry, too many clients already`. To diagnose:
+
+```sql
+-- Check active connections to the goclaw database
+SELECT count(*) FROM pg_stat_activity WHERE datname = 'goclaw';
+```
+
+If running multiple GoClaw instances, ensure `max_connections` in `postgresql.conf` is at least `25 × instances + 5`.
+
 ## Migration Failures
 
 Run migrations manually:
@@ -46,6 +55,22 @@ Run migrations manually:
 # Then apply migrations again
 ./goclaw migrate up
 ```
+
+## pgvector and pgcrypto Extensions
+
+GoClaw requires **both** `pgvector` and `pgcrypto`. The first migration (`000001_init_schema.up.sql`) creates both extensions:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "vector";
+```
+
+`pgcrypto` is used for UUID generation (`gen_random_uuid()`). It is bundled with PostgreSQL's `postgresql-contrib` package on most platforms.
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| `extension "pgcrypto" does not exist` | `postgresql-contrib` not installed | `apt install postgresql-contrib` (Debian) or `brew install postgresql` already includes it |
+| Migration fails at `CREATE EXTENSION IF NOT EXISTS "pgcrypto"` | Insufficient privileges | Connect as superuser or grant `CREATE EXTENSION` privilege |
 
 ## pgvector Extension
 
@@ -103,6 +128,18 @@ SET work_mem = '256MB';
 
 ## Embedding Backfill
 
+GoClaw automatically backfills embeddings at startup. When an embedding-capable provider (Anthropic or OpenAI) is configured, GoClaw launches background goroutines that call `BackfillEmbeddings` (memory chunks) and `BackfillSkillEmbeddings` (skills) for any rows with `embedding IS NULL`. This runs once per startup.
+
+Watch for these startup log lines:
+
+```
+INFO memory embeddings enabled provider=anthropic model=text-embedding-3-small
+INFO memory embeddings backfill complete chunks_updated=42
+INFO skill embeddings backfill complete updated=5
+```
+
+If the log shows `memory embeddings disabled (no API key), chunks stored without vectors`, configure an embedding provider first.
+
 If memory documents or skills were inserted before an embedding provider was configured, their `embedding` columns will be NULL and vector search will skip them.
 
 To check for un-embedded rows:
@@ -112,7 +149,7 @@ SELECT COUNT(*) FROM memory_chunks WHERE embedding IS NULL;
 SELECT COUNT(*) FROM skills WHERE embedding IS NULL AND status = 'active';
 ```
 
-To trigger a backfill, re-save the documents via the API or dashboard. Full automated backfill tooling is not yet included in the CLI.
+If backfill failed (check logs for `memory embeddings backfill failed`), restart GoClaw after fixing the provider — backfill will run again automatically.
 
 ## Backup and Restore
 

@@ -98,6 +98,38 @@ The `codex` provider (OpenAI Codex CLI) also shells out to a local binary.
 | Auth failure | CLI not authenticated | Run `codex auth` or set `OPENAI_API_KEY` in the environment |
 | Stream read error | Binary crashed mid-stream | Check binary version compatibility; update Codex CLI |
 
+## ACP Provider
+
+The `acp` provider (Agent Client Protocol) orchestrates any ACP-compatible coding agent (Claude Code, Codex CLI, Gemini CLI) as a subprocess using JSON-RPC 2.0 over stdin/stdout. It does not require an API key — the agent binary manages its own authentication.
+
+Configure in `config.json` under `providers.acp`:
+
+```json
+"acp": {
+  "binary": "claude",
+  "args": [],
+  "model": "claude",
+  "work_dir": "",
+  "idle_ttl": "5m",
+  "perm_mode": "approve-all"
+}
+```
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| `acp: binary not found, skipping` | Binary path doesn't exist or isn't executable | Verify the binary is installed and the `binary` field is the correct path or name in `$PATH` |
+| `acp: spawn failed` | Subprocess failed to start | Check that the binary is executable; run it manually to see startup errors |
+| `acp: prompt failed` | JSON-RPC communication error on stdin/stdout | Check subprocess logs; ensure the agent binary version supports ACP protocol |
+| `acp: session_key required in options` | No session key in request | ACP requires a session key — ensure the agent config passes `session_key` in options |
+| `acp: no user message in request` | Empty request content | Ensure the chat request contains a user message |
+| Provider not in dashboard | `binary` field not set in config | Set `providers.acp.binary` in `config.json` and restart |
+
+**Startup log for successful ACP registration:**
+
+```
+INFO registered provider name=acp binary=claude
+```
+
 ## What's Next
 
 - [Database issues](database.md)

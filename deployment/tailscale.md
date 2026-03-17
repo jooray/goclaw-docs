@@ -78,8 +78,8 @@ Or via `config.json` (auth key is **never** stored in config — env only):
 |-------|---------|-------------|
 | `hostname` | `goclaw-gateway` | Tailscale device name |
 | `state_dir` | OS user config dir | Persists Tailscale identity across restarts |
-| `ephemeral` | `false` | If true, node is removed from Tailscale when GoClaw stops |
-| `enable_tls` | `false` | Use Tailscale HTTPS certs (listens on `:443`) |
+| `ephemeral` | `false` | If true, node is automatically removed from your tailnet when GoClaw stops — useful for CI/CD or short-lived containers |
+| `enable_tls` | `false` | Use Tailscale-managed HTTPS certs via Let's Encrypt (listens on `:443` instead of `:80`) |
 
 ## Docker Compose Setup
 

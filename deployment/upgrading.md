@@ -9,7 +9,7 @@ A GoClaw upgrade has two parts:
 1. **SQL migrations** — schema changes applied by `golang-migrate` (idempotent, versioned)
 2. **Data hooks** — optional Go-based data transformations that run after schema migrations (e.g. backfilling a new column)
 
-The `./goclaw upgrade` command handles both in the correct order. It is safe to run multiple times — it is fully idempotent.
+The `./goclaw upgrade` command handles both in the correct order. It is safe to run multiple times — it is fully idempotent. The current required schema version is **21**.
 
 ```mermaid
 graph LR
@@ -191,6 +191,31 @@ Force the migration version back to the last known good state, then re-run upgra
 ```
 
 Only do this if you understand what the failed migration was doing. When in doubt, restore from backup.
+
+### All migrate subcommands
+
+```bash
+./goclaw migrate up              # Apply pending migrations
+./goclaw migrate down            # Roll back one step
+./goclaw migrate down 3          # Roll back 3 steps
+./goclaw migrate version         # Show current version + dirty state
+./goclaw migrate force <version> # Force version (recovery only)
+./goclaw migrate goto <version>  # Migrate to a specific version
+./goclaw migrate drop            # DROP ALL TABLES (dangerous — use only in dev)
+```
+
+> **Data hooks tracking:** GoClaw tracks post-migration Go transforms in a separate `data_migrations` table (distinct from `schema_migrations`). Run `./goclaw upgrade --status` to see both SQL migration version and pending data hooks.
+
+## Recently Removed Environment Variables
+
+These environment variables have been removed and will be silently ignored if set:
+
+| Removed variable | Reason | Migration path |
+|-----------------|--------|----------------|
+| `GOCLAW_SESSIONS_STORAGE` | Sessions are now PostgreSQL-only | Remove from `.env` — no replacement needed |
+| `GOCLAW_MODE` | Managed mode is now the default | Remove from `.env` — no replacement needed |
+
+If your `.env` or deployment scripts reference these, clean them up to avoid confusion.
 
 ## Breaking Changes Checklist
 

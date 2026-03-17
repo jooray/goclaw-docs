@@ -263,6 +263,53 @@ Cấu hình messaging channel.
 | `enabled` | boolean | `false` | Bật WhatsApp channel |
 | `bridge_url` | string | — | URL WhatsApp bridge service |
 
+### `channels.slack`
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `enabled` | boolean | `false` | Bật Slack channel |
+| `bot_token` | string | — | Bot User OAuth Token (`xoxb-...`) |
+| `app_token` | string | — | App-Level Token cho Socket Mode (`xapp-...`) |
+| `user_token` | string | — | User OAuth Token tùy chọn (`xoxp-...`) cho custom bot identity |
+| `allow_from` | string[] | — | Allowlist user ID |
+| `dm_policy` | string | `pairing` | `"pairing"`, `"allowlist"`, `"open"`, `"disabled"` |
+| `group_policy` | string | `open` | `"open"`, `"pairing"`, `"allowlist"`, `"disabled"` |
+| `require_mention` | boolean | `true` | Yêu cầu @bot mention trong channel |
+| `history_limit` | integer | `50` | Max message đang chờ cho context (0 = tắt) |
+| `dm_stream` | boolean | `false` | Progressive streaming cho DM |
+| `group_stream` | boolean | `false` | Progressive streaming cho group |
+| `native_stream` | boolean | `false` | Dùng Slack ChatStreamer API nếu có |
+| `reaction_level` | string | `off` | `"off"`, `"minimal"`, `"full"` — emoji reaction status |
+| `block_reply` | boolean | — | Override gateway `block_reply` (không đặt = kế thừa) |
+| `debounce_delay` | integer | `300` | Thời gian chờ (ms) trước khi xử lý tin nhắn nhanh liên tiếp (0 = tắt) |
+| `thread_ttl` | integer | `24` | Số giờ trước khi thread participation hết hạn (0 = luôn yêu cầu @mention) |
+| `media_max_bytes` | integer | `20971520` | Max kích thước tải file (mặc định 20 MB) |
+
+### `channels.zalo_personal`
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `enabled` | boolean | `false` | Bật Zalo Personal channel |
+| `allow_from` | string[] | — | Allowlist user ID |
+| `dm_policy` | string | `pairing` | `"pairing"`, `"allowlist"`, `"open"`, `"disabled"` |
+| `group_policy` | string | `open` | `"open"`, `"allowlist"`, `"disabled"` |
+| `require_mention` | boolean | `true` | Yêu cầu @bot mention trong group |
+| `history_limit` | integer | `50` | Max group message đang chờ cho context (0 = tắt) |
+| `credentials_path` | string | — | Đường dẫn đến file JSON cookies đã lưu |
+| `block_reply` | boolean | — | Override gateway `block_reply` (không đặt = kế thừa) |
+
+### `channels.pending_compaction`
+
+Khi group tích lũy nhiều hơn `threshold` tin nhắn đang chờ, các tin nhắn cũ sẽ được LLM tóm tắt trước khi gửi đến agent, giữ lại `keep_recent` tin nhắn gần nhất ở dạng nguyên bản.
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `threshold` | integer | `50` | Kích hoạt compaction khi số tin nhắn đang chờ vượt ngưỡng này |
+| `keep_recent` | integer | `15` | Số tin nhắn gần nhất giữ nguyên sau compaction |
+| `max_tokens` | integer | `4096` | Max output token cho LLM khi tóm tắt |
+| `provider` | string | — | LLM provider cho tóm tắt (trống = dùng provider của agent) |
+| `model` | string | — | Model cho tóm tắt (trống = dùng model của agent) |
+
 ---
 
 ## `gateway`
@@ -273,9 +320,14 @@ Cấu hình messaging channel.
 | `port` | integer | `18790` | Listen port |
 | `token` | string | — | Bearer token để auth (để trong env) |
 | `owner_ids` | string[] | — | User ID có quyền admin/owner |
+| `allowed_origins` | string[] | `[]` | Các origin WebSocket CORS được phép (trống = cho phép tất cả) |
 | `max_message_chars` | integer | `32000` | Độ dài tin nhắn đến tối đa |
+| `inbound_debounce_ms` | integer | `1000` | Gộp các tin nhắn nhanh liên tiếp (ms) |
 | `rate_limit_rpm` | integer | `20` | WebSocket rate limit (requests mỗi phút) |
-| `injection_action` | string | — | Hành động cho message bị inject |
+| `injection_action` | string | `warn` | `"off"`, `"log"`, `"warn"`, `"block"` — phản hồi prompt injection |
+| `block_reply` | boolean | `false` | Gửi text trung gian cho user trong quá trình tool đang chạy |
+| `tool_status` | boolean | `true` | Hiển thị tên tool trong streaming preview khi tool đang thực thi |
+| `task_recovery_interval_sec` | integer | `300` | Khoảng thời gian kiểm tra recovery team task |
 | `quota` | object | — | Cấu hình request quota mỗi user |
 
 ---
@@ -284,6 +336,11 @@ Cấu hình messaging channel.
 
 | Field | Type | Mặc định | Mô tả |
 |-------|------|----------|-------|
+| `profile` | string | — | Preset tool profile: `"minimal"`, `"coding"`, `"messaging"`, `"full"` |
+| `allow` | string[] | — | Allowlist tool tường minh (tên tool hoặc `"group:xxx"`) |
+| `deny` | string[] | — | Denylist tool tường minh |
+| `alsoAllow` | string[] | — | Allowlist bổ sung — gộp với profile mà không xóa tool hiện có |
+| `byProvider` | object | — | Override tool policy theo provider (key là tên provider) |
 | `rate_limit_per_hour` | integer | `150` | Max tool call mỗi session mỗi giờ |
 | `scrub_credentials` | boolean | `true` | Scrub secrets khỏi tool output |
 
@@ -343,7 +400,61 @@ Mảng MCP server config. Mỗi entry:
 
 | Field | Type | Mặc định | Mô tả |
 |-------|------|----------|-------|
-| `storage` | string | `~/.goclaw/sessions` | Đường dẫn lưu session (legacy, không dùng ở PostgreSQL mode) |
+| `scope` | string | `per-sender` | Phạm vi session: `"per-sender"` (mỗi user có session riêng) hoặc `"global"` (tất cả user dùng chung một session) |
+| `dm_scope` | string | `per-channel-peer` | Cô lập session DM: `"main"`, `"per-peer"`, `"per-channel-peer"`, `"per-account-channel-peer"` |
+| `main_key` | string | `main` | Suffix key session chính (dùng khi `dm_scope` là `"main"`) |
+
+---
+
+## `tts`
+
+Cấu hình text-to-speech. Chọn provider và tùy chọn bật auto-TTS.
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `provider` | string | — | TTS provider: `"openai"`, `"elevenlabs"`, `"edge"`, `"minimax"` |
+| `auto` | string | `off` | Khi nào tự phát âm: `"off"`, `"always"`, `"inbound"` (chỉ khi nhận voice), `"tagged"` |
+| `mode` | string | `final` | Phát âm phần nào: `"final"` (chỉ reply hoàn chỉnh) hoặc `"all"` (mỗi chunk stream) |
+| `max_length` | integer | `1500` | Độ dài text tối đa trước khi cắt |
+| `timeout_ms` | integer | `30000` | Timeout TTS API (milliseconds) |
+
+### `tts.openai`
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `api_key` | string | — | OpenAI API key (để trong env: `GOCLAW_TTS_OPENAI_API_KEY`) |
+| `api_base` | string | — | URL endpoint tùy chỉnh |
+| `model` | string | `gpt-4o-mini-tts` | TTS model |
+| `voice` | string | `alloy` | Tên giọng đọc |
+
+### `tts.elevenlabs`
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `api_key` | string | — | ElevenLabs API key (để trong env: `GOCLAW_TTS_ELEVENLABS_API_KEY`) |
+| `base_url` | string | — | Base URL tùy chỉnh |
+| `voice_id` | string | `pMsXgVXv3BLzUgSXRplE` | Voice ID |
+| `model_id` | string | `eleven_multilingual_v2` | Model ID |
+
+### `tts.edge`
+
+Microsoft Edge TTS — miễn phí, không cần API key.
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `enabled` | boolean | `false` | Bật Edge TTS provider |
+| `voice` | string | `en-US-MichelleNeural` | Tên giọng đọc (tương thích SSML) |
+| `rate` | string | `+0%` | Điều chỉnh tốc độ nói (ví dụ `"+10%"`, `"-5%"`) |
+
+### `tts.minimax`
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `api_key` | string | — | MiniMax API key (để trong env: `GOCLAW_TTS_MINIMAX_API_KEY`) |
+| `group_id` | string | — | MiniMax GroupId (bắt buộc; để trong env: `GOCLAW_TTS_MINIMAX_GROUP_ID`) |
+| `api_base` | string | `https://api.minimax.io/v1` | Base URL API |
+| `model` | string | `speech-02-hd` | TTS model |
+| `voice_id` | string | `Wise_Woman` | Voice ID |
 
 ---
 
@@ -354,6 +465,7 @@ Mảng MCP server config. Mỗi entry:
 | `max_retries` | integer | `3` | Số lần retry tối đa khi job lỗi (0 = không retry) |
 | `retry_base_delay` | string | `2s` | Backoff retry ban đầu (Go duration, ví dụ `"2s"`) |
 | `retry_max_delay` | string | `30s` | Backoff retry tối đa |
+| `default_timezone` | string | — | Múi giờ IANA mặc định cho cron expression khi không đặt per-job (ví dụ `"Asia/Ho_Chi_Minh"`, `"America/New_York"`) |
 
 ---
 

@@ -143,6 +143,24 @@ services:
 | `goclaw.trace_id` | UUID liên kết về PostgreSQL |
 | `goclaw.duration_ms` | Wall-clock duration |
 
+## Phân tích Usage
+
+GoClaw tổng hợp token counts và chi phí thành hourly snapshots qua background worker. Dữ liệu này cung cấp cho biểu đồ usage trên dashboard và API endpoint `/v1/usage`.
+
+Bảng `usage_snapshots` lưu trữ aggregates được tính sẵn theo agent, user, và provider — giúp dashboard query nhanh ngay cả với hàng triệu spans.
+
+Bảng `activity_logs` ghi lại hành động admin, thay đổi config, và sự kiện bảo mật như một audit trail.
+
+## Streaming Log Thời gian thực
+
+WebSocket client đã kết nối có thể subscribe nhận live log events. Tầng `LogTee` chặn tất cả `slog` records và:
+
+1. Cache 100 entry gần nhất trong ring buffer (subscriber mới nhận history gần đây)
+2. Broadcast đến client đã subscribe theo log level họ chọn
+3. Tự động ẩn các field nhạy cảm: `key`, `token`, `secret`, `password`, `dsn`, `credential`, `authorization`, `cookie`
+
+Điều này nghĩa là người dùng dashboard xem log thời gian thực mà không cần SSH, và secrets không bao giờ bị lộ qua log stream.
+
 ## Các vấn đề thường gặp
 
 | Vấn đề | Nguyên nhân có thể | Cách xử lý |

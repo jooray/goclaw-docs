@@ -64,6 +64,9 @@ API keys from environment override any values in `config.json`. Setting a key he
 | `GOCLAW_PERPLEXITY_API_KEY` | Perplexity |
 | `GOCLAW_DASHSCOPE_API_KEY` | Alibaba DashScope |
 | `GOCLAW_BAILIAN_API_KEY` | Alibaba Bailian |
+| `GOCLAW_OLLAMA_HOST` | Ollama server URL (e.g. `http://localhost:11434`) |
+| `GOCLAW_OLLAMA_CLOUD_API_KEY` | Ollama Cloud API key |
+| `GOCLAW_OLLAMA_CLOUD_API_BASE` | Ollama Cloud custom base URL |
 
 ### Provider & Model Defaults
 
@@ -119,6 +122,8 @@ Setting a token/credential via environment auto-enables that channel.
 | `GOCLAW_WORKSPACE` | Default agent workspace directory. Default: `~/.goclaw/workspace` |
 | `GOCLAW_SESSIONS_STORAGE` | Session storage path (legacy). Default: `~/.goclaw/sessions` |
 | `GOCLAW_SKILLS_DIR` | Global skills directory. Default: `~/.goclaw/skills` |
+| `GOCLAW_BUILTIN_SKILLS_DIR` | Path to built-in skill definitions. Default: `./builtin-skills` |
+| `GOCLAW_BUNDLED_SKILLS_DIR` | Path to bundled skill packages. Default: `./bundled-skills` |
 
 ---
 
@@ -134,6 +139,19 @@ Setting a token/credential via environment auto-enables that channel.
 | `GOCLAW_SANDBOX_CPUS` | CPU limit (float, e.g. `"1.5"`) |
 | `GOCLAW_SANDBOX_TIMEOUT_SEC` | Exec timeout in seconds |
 | `GOCLAW_SANDBOX_NETWORK` | `"true"` to enable container network access |
+
+---
+
+## Concurrency / Scheduler
+
+Lane-based limits for concurrent agent runs.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GOCLAW_LANE_MAIN` | `30` | Max concurrent main agent runs |
+| `GOCLAW_LANE_SUBAGENT` | `50` | Max concurrent subagent runs |
+| `GOCLAW_LANE_DELEGATE` | `100` | Max concurrent delegated agent runs |
+| `GOCLAW_LANE_CRON` | `30` | Max concurrent cron job runs |
 
 ---
 
@@ -169,6 +187,7 @@ Requires build tag `tsnet` (`go build -tags tsnet`).
 |----------|-------------|
 | `GOCLAW_TRACE_VERBOSE` | Set to `1` to log full LLM input in trace spans |
 | `GOCLAW_BROWSER_REMOTE_URL` | Connect to a remote browser via Chrome DevTools Protocol URL. Auto-enables browser tool |
+| `GOCLAW_REDIS_DSN` | Redis connection string (e.g. `redis://redis:6379/0`). Requires build with `-tags redis` |
 
 ---
 

@@ -34,8 +34,12 @@ erDiagram
     agents ||--o{ agent_links : "links"
     agents ||--o{ agent_teams : "leads"
     agents ||--o{ agent_team_members : "member of"
+    agents ||--o{ kg_entities : "has"
+    agents ||--o{ kg_relations : "has"
+    agents ||--o{ usage_snapshots : "measured in"
     agent_teams ||--o{ team_tasks : "has"
     agent_teams ||--o{ team_messages : "has"
+    agent_teams ||--o{ team_workspace_files : "stores"
     memory_documents ||--o{ memory_chunks : "split into"
     cron_jobs ||--o{ cron_run_logs : "logs"
     traces ||--o{ spans : "contains"
@@ -43,6 +47,11 @@ erDiagram
     mcp_servers ||--o{ mcp_user_grants : "granted to"
     skills ||--o{ skill_agent_grants : "granted to"
     skills ||--o{ skill_user_grants : "granted to"
+    kg_entities ||--o{ kg_relations : "source of"
+    team_tasks ||--o{ team_task_comments : "has"
+    team_tasks ||--o{ team_task_events : "logs"
+    team_workspace_files ||--o{ team_workspace_file_versions : "versioned by"
+    team_workspace_files ||--o{ team_workspace_comments : "commented on"
 ```
 
 ---
@@ -97,6 +106,7 @@ Core agent records. Each agent has its own context, tools, and model configurati
 | `frontmatter` | TEXT | | Short expertise summary for delegation and UI |
 | `tsv` | tsvector | GENERATED ALWAYS | Full-text search vector (display_name + frontmatter) |
 | `embedding` | vector(1536) | | Semantic search embedding |
+| `budget_monthly_cents` | INTEGER | | Monthly spend cap in USD cents; NULL = unlimited (migration 015) |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `deleted_at` | TIMESTAMPTZ | | Soft delete timestamp |
@@ -165,6 +175,7 @@ Tracks first/last seen timestamps per user per agent.
 | `workspace` | TEXT | Per-user workspace override |
 | `first_seen_at` | TIMESTAMPTZ | |
 | `last_seen_at` | TIMESTAMPTZ | |
+| `metadata` | JSONB DEFAULT `{}` | Arbitrary profile metadata (migration 011) |
 
 **PK:** `(agent_id, user_id)`
 
@@ -207,9 +218,11 @@ Chat sessions. One session per channel/user/agent combination.
 | `label` | VARCHAR(500) | Human-readable session label |
 | `spawned_by` | VARCHAR(200) | Parent session key (for subagents) |
 | `spawn_depth` | INT DEFAULT 0 | Nesting depth |
+| `metadata` | JSONB DEFAULT `{}` | Arbitrary session metadata (migration 011) |
+| `team_id` | UUID FK → agent_teams (nullable) | Set for team-scoped sessions (migration 019) |
 | `created_at` / `updated_at` | TIMESTAMPTZ | |
 
-**Indexes:** `agent_id`, `user_id`, `updated_at DESC`
+**Indexes:** `agent_id`, `user_id`, `updated_at DESC`, `team_id` (partial)
 
 ---
 
@@ -227,6 +240,7 @@ Hybrid BM25 + vector memory system.
 | `path` | VARCHAR(500) | Logical document path/title |
 | `content` | TEXT | Full document content |
 | `hash` | VARCHAR(64) | SHA-256 of content for change detection |
+| `team_id` | UUID FK → agent_teams (nullable) | Team scope; NULL = personal (migration 019) |
 
 **`memory_chunks`** — searchable segments of documents:
 
@@ -242,8 +256,9 @@ Hybrid BM25 + vector memory system.
 | `text` | TEXT | Chunk content |
 | `embedding` | vector(1536) | Semantic embedding |
 | `tsv` | tsvector GENERATED | Full-text search (simple config, multilingual) |
+| `team_id` | UUID FK → agent_teams (nullable) | Team scope; NULL = personal (migration 019) |
 
-**Indexes:** agent+user (standard + partial for global), document, GIN on tsv, HNSW cosine on embedding
+**Indexes:** agent+user (standard + partial for global), document, GIN on tsv, HNSW cosine on embedding, `team_id` (partial)
 
 **`embedding_cache`** — deduplicates embedding API calls:
 
@@ -279,8 +294,11 @@ Uploaded skill packages with BM25 + semantic search.
 | `file_hash` | VARCHAR(64) | Content hash |
 | `embedding` | vector(1536) | Semantic search embedding |
 | `tags` | TEXT[] | Tag list |
+| `is_system` | BOOLEAN DEFAULT false | Built-in system skill; not user-deletable (migration 017) |
+| `deps` | JSONB DEFAULT `{}` | Skill dependency declarations (migration 017) |
+| `enabled` | BOOLEAN DEFAULT true | Whether skill is active (migration 017) |
 
-**Indexes:** owner, visibility (partial active), slug, HNSW embedding, GIN tags
+**Indexes:** owner, visibility (partial active), slug, HNSW embedding, GIN tags, `is_system` (partial true), `enabled` (partial false)
 
 **`skill_agent_grants`** / **`skill_user_grants`** — access control for skills, same pattern as MCP grants.
 
@@ -308,8 +326,9 @@ Scheduled agent tasks.
 | `last_run_at` | TIMESTAMPTZ | Last execution time |
 | `last_status` | VARCHAR(20) | `ok`, `error`, `running` |
 | `last_error` | TEXT | Last error message |
+| `team_id` | UUID FK → agent_teams (nullable) | Team scope; NULL = personal (migration 019) |
 
-**`cron_run_logs`** — per-run history with token counts and duration.
+**`cron_run_logs`** — per-run history with token counts and duration. `team_id` column also added (migration 019).
 
 ---
 
@@ -336,8 +355,12 @@ Device pairing flow (channel users requesting access).
 | `chat_id` | VARCHAR(200) | |
 | `paired_by` | VARCHAR(100) | Who approved |
 | `paired_at` | TIMESTAMPTZ | |
+| `metadata` | JSONB DEFAULT `{}` | Arbitrary pairing metadata (migration 011) |
+| `expires_at` | TIMESTAMPTZ | Pairing expiry; NULL = no expiry (migration 021) |
 
 **Unique:** `(sender_id, channel)`
+
+> `pairing_requests` also received `metadata JSONB DEFAULT '{}'` in migration 011.
 
 ---
 
@@ -368,7 +391,7 @@ LLM call tracing.
 
 Key columns: `trace_id`, `parent_span_id`, `span_type` (`llm`, `tool`, `agent`), `model`, `provider`, `input_tokens`, `output_tokens`, `total_cost`, `tool_name`, `finish_reason`.
 
-**Indexes:** Optimized for agent+time, user+time, session, status=error. Partial index `idx_traces_quota` on `(user_id, created_at DESC)` filters `parent_trace_id IS NULL` for quota counting.
+**Indexes:** Optimized for agent+time, user+time, session, status=error. Partial index `idx_traces_quota` on `(user_id, created_at DESC)` filters `parent_trace_id IS NULL` for quota counting. Both `traces` and `spans` have `team_id UUID FK → agent_teams` (nullable, migration 019) with partial indexes. `traces` also has `idx_traces_start_root` on `(start_time DESC) WHERE parent_trace_id IS NULL` and `spans` has `idx_spans_trace_type` on `(trace_id, span_type)` (migration 016).
 
 ---
 
@@ -467,11 +490,31 @@ Collaborative multi-agent coordination.
 | `description` | TEXT | Full task description |
 | `status` | VARCHAR(20) DEFAULT `pending` | `pending`, `in_progress`, `completed`, `cancelled` |
 | `owner_agent_id` | UUID | Agent that claimed the task |
-| `blocked_by` | UUID[] | Task IDs this task is blocked by |
+| `blocked_by` | UUID[] DEFAULT `{}` | Task IDs this task is blocked by |
 | `priority` | INT DEFAULT 0 | Higher = higher priority |
 | `result` | TEXT | Task output |
+| `task_type` | VARCHAR(30) DEFAULT `general` | Task category (migration 018) |
+| `task_number` | INT DEFAULT 0 | Sequential number per team (migration 018) |
+| `identifier` | VARCHAR(20) | Human-readable ID e.g. `TSK-1` (migration 018) |
+| `created_by_agent_id` | UUID FK → agents | Agent that created the task (migration 018) |
+| `assignee_user_id` | VARCHAR(255) | Human user assignee (migration 018) |
+| `parent_id` | UUID FK → team_tasks | Parent task for subtasks (migration 018) |
+| `chat_id` | VARCHAR(255) DEFAULT `''` | Originating chat (migration 018) |
+| `locked_at` | TIMESTAMPTZ | When task lock was acquired (migration 018) |
+| `lock_expires_at` | TIMESTAMPTZ | Lock TTL (migration 018) |
+| `progress_percent` | INT DEFAULT 0 | 0–100 completion indicator (migration 018) |
+| `progress_step` | TEXT | Current progress description (migration 018) |
+| `followup_at` | TIMESTAMPTZ | Next followup reminder time (migration 018) |
+| `followup_count` | INT DEFAULT 0 | Number of followups sent (migration 018) |
+| `followup_max` | INT DEFAULT 0 | Max followups to send (migration 018) |
+| `followup_message` | TEXT | Message to send at followup (migration 018) |
+| `followup_channel` | VARCHAR(60) | Channel for followup delivery (migration 018) |
+| `followup_chat_id` | VARCHAR(255) | Chat ID for followup delivery (migration 018) |
+| `confidence_score` | FLOAT | Agent self-assessment score (migration 021) |
 
-**`team_messages`** — peer-to-peer mailbox between agents within a team.
+**Indexes:** `parent_id` (partial), `(team_id, channel, chat_id)`, `(team_id, task_type)`, `lock_expires_at` (partial in_progress), `(team_id, identifier)` (unique partial), `followup_at` (partial in_progress), `blocked_by` (GIN), `(team_id, owner_agent_id, status)`
+
+**`team_messages`** — peer-to-peer mailbox between agents within a team. Received `confidence_score FLOAT` in migration 021.
 
 ---
 
@@ -518,6 +561,303 @@ Telegram group members authorized to use file-writing tools.
 
 ---
 
+### `channel_pending_messages`
+
+Group chat message buffer. Persists messages when the bot is not mentioned so that full conversational context is available when it is mentioned. Supports LLM-based compaction (`is_summary` rows) and 7-day TTL cleanup. (migration 012)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | UUID v7 |
+| `channel_name` | VARCHAR(100) | NOT NULL | Channel instance name |
+| `history_key` | VARCHAR(200) | NOT NULL | Composite key scoping the conversation buffer |
+| `sender` | VARCHAR(255) | NOT NULL | Display name of sender |
+| `sender_id` | VARCHAR(255) | NOT NULL DEFAULT `''` | Platform user ID |
+| `body` | TEXT | NOT NULL | Raw message text |
+| `platform_msg_id` | VARCHAR(100) | NOT NULL DEFAULT `''` | Native platform message ID |
+| `is_summary` | BOOLEAN | NOT NULL DEFAULT false | True if this row is a compacted summary |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+| `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+
+**Indexes:** `(channel_name, history_key, created_at)`
+
+---
+
+### `kg_entities`
+
+Knowledge graph entity nodes scoped per agent and user. (migration 013)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | |
+| `agent_id` | UUID FK → agents | NOT NULL | Owning agent (cascade delete) |
+| `user_id` | VARCHAR(255) | NOT NULL DEFAULT `''` | User scope; empty = agent-global |
+| `external_id` | VARCHAR(255) | NOT NULL | Caller-supplied entity identifier |
+| `name` | TEXT | NOT NULL | Entity display name |
+| `entity_type` | VARCHAR(100) | NOT NULL | e.g. `person`, `company`, `concept` |
+| `description` | TEXT | DEFAULT `''` | Free-text description |
+| `properties` | JSONB | DEFAULT `{}` | Structured entity attributes |
+| `source_id` | VARCHAR(255) | DEFAULT `''` | Source document/chunk reference |
+| `confidence` | FLOAT | NOT NULL DEFAULT 1.0 | Extraction confidence score |
+| `team_id` | UUID FK → agent_teams (nullable) | | Team scope; NULL = personal (migration 019) |
+| `created_at` / `updated_at` | TIMESTAMPTZ | | |
+
+**Unique:** `(agent_id, user_id, external_id)`
+
+**Indexes:** `(agent_id, user_id)`, `(agent_id, user_id, entity_type)`, `team_id` (partial)
+
+---
+
+### `kg_relations`
+
+Knowledge graph edges between entities. (migration 013)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | |
+| `agent_id` | UUID FK → agents | NOT NULL | Owning agent (cascade delete) |
+| `user_id` | VARCHAR(255) | NOT NULL DEFAULT `''` | User scope |
+| `source_entity_id` | UUID FK → kg_entities | NOT NULL | Source node (cascade delete) |
+| `relation_type` | VARCHAR(200) | NOT NULL | Relation label e.g. `works_at`, `knows` |
+| `target_entity_id` | UUID FK → kg_entities | NOT NULL | Target node (cascade delete) |
+| `confidence` | FLOAT | NOT NULL DEFAULT 1.0 | Extraction confidence score |
+| `properties` | JSONB | DEFAULT `{}` | Relation attributes |
+| `team_id` | UUID FK → agent_teams (nullable) | | Team scope; NULL = personal (migration 019) |
+| `created_at` | TIMESTAMPTZ | | |
+
+**Unique:** `(agent_id, user_id, source_entity_id, relation_type, target_entity_id)`
+
+**Indexes:** `(source_entity_id, relation_type)`, `target_entity_id`, `team_id` (partial)
+
+---
+
+### `channel_contacts`
+
+Global unified contact directory auto-collected from all channel interactions. Not per-agent. Used for contact selector, analytics, and future RBAC. (migration 014)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | |
+| `channel_type` | VARCHAR(50) | NOT NULL | e.g. `telegram`, `discord` |
+| `channel_instance` | VARCHAR(255) | | Instance name (nullable) |
+| `sender_id` | VARCHAR(255) | NOT NULL | Platform-native user ID |
+| `user_id` | VARCHAR(255) | | Matched GoClaw user ID |
+| `display_name` | VARCHAR(255) | | Resolved display name |
+| `username` | VARCHAR(255) | | Platform username/handle |
+| `avatar_url` | TEXT | | Profile image URL |
+| `peer_kind` | VARCHAR(20) | | e.g. `user`, `bot`, `group` |
+| `metadata` | JSONB | DEFAULT `{}` | Extra platform-specific data |
+| `merged_id` | UUID | | Canonical contact after de-duplication |
+| `first_seen_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+| `last_seen_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+
+**Unique:** `(channel_type, sender_id)`
+
+**Indexes:** `channel_instance` (partial non-null), `merged_id` (partial non-null), `(display_name, username)`
+
+---
+
+### `activity_logs`
+
+Immutable audit trail for user and system actions. (migration 015)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | UUID v7 |
+| `actor_type` | VARCHAR(20) | NOT NULL | `user`, `agent`, `system` |
+| `actor_id` | VARCHAR(255) | NOT NULL | User or agent ID |
+| `action` | VARCHAR(100) | NOT NULL | e.g. `agent.create`, `skill.delete` |
+| `entity_type` | VARCHAR(50) | | Type of affected entity |
+| `entity_id` | VARCHAR(255) | | ID of affected entity |
+| `details` | JSONB | | Action-specific context |
+| `ip_address` | VARCHAR(45) | | Client IP (IPv4 or IPv6) |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+
+**Indexes:** `(actor_type, actor_id)`, `action`, `(entity_type, entity_id)`, `created_at DESC`
+
+---
+
+### `usage_snapshots`
+
+Hourly pre-aggregated metrics per agent/provider/model/channel combination. Populated by a background snapshot worker that reads `traces` and `spans`. (migration 016)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | UUID v7 |
+| `bucket_hour` | TIMESTAMPTZ | Hour bucket (truncated to hour) |
+| `agent_id` | UUID (nullable) | Agent scope; NULL = system-wide |
+| `provider` | VARCHAR(50) DEFAULT `''` | LLM provider |
+| `model` | VARCHAR(200) DEFAULT `''` | Model ID |
+| `channel` | VARCHAR(50) DEFAULT `''` | Channel name |
+| `input_tokens` | BIGINT DEFAULT 0 | |
+| `output_tokens` | BIGINT DEFAULT 0 | |
+| `cache_read_tokens` | BIGINT DEFAULT 0 | |
+| `cache_create_tokens` | BIGINT DEFAULT 0 | |
+| `thinking_tokens` | BIGINT DEFAULT 0 | |
+| `total_cost` | NUMERIC(12,6) DEFAULT 0 | Estimated USD cost |
+| `request_count` | INT DEFAULT 0 | |
+| `llm_call_count` | INT DEFAULT 0 | |
+| `tool_call_count` | INT DEFAULT 0 | |
+| `error_count` | INT DEFAULT 0 | |
+| `unique_users` | INT DEFAULT 0 | Distinct users in bucket |
+| `avg_duration_ms` | INT DEFAULT 0 | Average request duration |
+| `memory_docs` | INT DEFAULT 0 | Point-in-time memory document count |
+| `memory_chunks` | INT DEFAULT 0 | Point-in-time memory chunk count |
+| `kg_entities` | INT DEFAULT 0 | Point-in-time KG entity count |
+| `kg_relations` | INT DEFAULT 0 | Point-in-time KG relation count |
+| `created_at` | TIMESTAMPTZ | |
+
+**Unique:** `(bucket_hour, COALESCE(agent_id, '00000000...'), provider, model, channel)` — enables safe upserts.
+
+**Indexes:** `bucket_hour DESC`, `(agent_id, bucket_hour DESC)`, `(provider, bucket_hour DESC)` (partial non-empty), `(channel, bucket_hour DESC)` (partial non-empty)
+
+---
+
+### `team_workspace_files`
+
+Shared file storage scoped by `(team_id, chat_id)`. Supports pinning, tagging, and soft-archiving. (migration 018)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | UUID v7 |
+| `team_id` | UUID FK → agent_teams | NOT NULL | Owning team |
+| `channel` | VARCHAR(50) DEFAULT `''` | | Channel context |
+| `chat_id` | VARCHAR(255) DEFAULT `''` | | System-derived user/chat ID |
+| `file_name` | VARCHAR(255) | NOT NULL | Display file name |
+| `mime_type` | VARCHAR(100) | | MIME type |
+| `file_path` | TEXT | NOT NULL | Storage path |
+| `size_bytes` | BIGINT DEFAULT 0 | | File size |
+| `uploaded_by` | UUID FK → agents | NOT NULL | Uploader agent |
+| `task_id` | UUID FK → team_tasks (nullable) | | Linked task |
+| `pinned` | BOOLEAN DEFAULT false | | Pinned to workspace |
+| `tags` | TEXT[] DEFAULT `{}` | | Searchable tags |
+| `metadata` | JSONB | | Extra metadata |
+| `archived_at` | TIMESTAMPTZ | | Soft delete timestamp |
+| `created_at` / `updated_at` | TIMESTAMPTZ | | |
+
+**Unique:** `(team_id, chat_id, file_name)`
+
+**Indexes:** `(team_id, chat_id)`, `uploaded_by`, `task_id` (partial), `archived_at` (partial), `(team_id, pinned)` (partial true), `tags` (GIN)
+
+---
+
+### `team_workspace_file_versions`
+
+Version history for workspace files. Each upload of a new version creates a row. (migration 018)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | UUID v7 |
+| `file_id` | UUID FK → team_workspace_files | NOT NULL | Parent file |
+| `version` | INT | NOT NULL | Version number |
+| `file_path` | TEXT | NOT NULL | Storage path for this version |
+| `size_bytes` | BIGINT DEFAULT 0 | | |
+| `uploaded_by` | UUID FK → agents | NOT NULL | |
+| `created_at` | TIMESTAMPTZ | NOT NULL | |
+
+**Unique:** `(file_id, version)`
+
+---
+
+### `team_workspace_comments`
+
+Annotations on workspace files. (migration 018)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | UUID v7 |
+| `file_id` | UUID FK → team_workspace_files | NOT NULL | Commented file |
+| `agent_id` | UUID FK → agents | NOT NULL | Commenting agent |
+| `content` | TEXT | NOT NULL | Comment text |
+| `created_at` | TIMESTAMPTZ | NOT NULL | |
+
+**Index:** `file_id`
+
+---
+
+### `team_task_comments`
+
+Discussion thread on a task. (migration 018)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | UUID v7 |
+| `task_id` | UUID FK → team_tasks | NOT NULL | Parent task |
+| `agent_id` | UUID FK → agents (nullable) | | Commenting agent |
+| `user_id` | VARCHAR(255) | | Commenting human user |
+| `content` | TEXT | NOT NULL | Comment body |
+| `metadata` | JSONB DEFAULT `{}` | | |
+| `confidence_score` | FLOAT | | Agent self-assessment (migration 021) |
+| `created_at` | TIMESTAMPTZ | NOT NULL | |
+
+**Index:** `task_id`
+
+---
+
+### `team_task_events`
+
+Immutable audit log for task state changes. (migration 018)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | UUID v7 |
+| `task_id` | UUID FK → team_tasks | NOT NULL | Parent task |
+| `event_type` | VARCHAR(30) | NOT NULL | e.g. `status_change`, `assigned`, `locked` |
+| `actor_type` | VARCHAR(10) | NOT NULL | `agent` or `user` |
+| `actor_id` | VARCHAR(255) | NOT NULL | Acting entity ID |
+| `data` | JSONB | | Event payload |
+| `created_at` | TIMESTAMPTZ | NOT NULL | |
+
+**Index:** `task_id`
+
+---
+
+### `secure_cli_binaries`
+
+Credential injection configuration for the Exec tool (Direct Exec Mode). Admins map binary names to encrypted environment variables; GoClaw auto-injects them into child processes. (migration 020)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | UUID v7 |
+| `binary_name` | TEXT | NOT NULL | Display name (e.g. `gh`, `gcloud`) |
+| `binary_path` | TEXT | | Absolute path; NULL = auto-resolved at runtime |
+| `description` | TEXT | NOT NULL DEFAULT `''` | Admin-facing description |
+| `encrypted_env` | BYTEA | NOT NULL | AES-256-GCM encrypted JSON env map |
+| `deny_args` | JSONB DEFAULT `[]` | | Regex patterns of forbidden argument prefixes |
+| `deny_verbose` | JSONB DEFAULT `[]` | | Verbose flag patterns to strip |
+| `timeout_seconds` | INT DEFAULT 30 | | Process timeout |
+| `tips` | TEXT DEFAULT `''` | | Hint injected into TOOLS.md context |
+| `agent_id` | UUID FK → agents (nullable) | | NULL = global (all agents) |
+| `enabled` | BOOLEAN DEFAULT true | | |
+| `created_by` | TEXT DEFAULT `''` | | Admin user who created this entry |
+| `created_at` / `updated_at` | TIMESTAMPTZ | | |
+
+**Unique:** `(binary_name, COALESCE(agent_id, '00000000...'))` — one config per binary per scope.
+
+**Indexes:** `binary_name`, `agent_id` (partial non-null)
+
+---
+
+### `api_keys`
+
+Fine-grained API key management with scope-based access control. (migration 020)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK | |
+| `name` | VARCHAR(100) | NOT NULL | Human-readable key name |
+| `prefix` | VARCHAR(8) | NOT NULL | First 8 chars for display/search |
+| `key_hash` | VARCHAR(64) | NOT NULL UNIQUE | SHA-256 hex digest of the full key |
+| `scopes` | TEXT[] DEFAULT `{}` | | e.g. `{'operator.admin','operator.read'}` |
+| `expires_at` | TIMESTAMPTZ | | NULL = never expires |
+| `last_used_at` | TIMESTAMPTZ | | |
+| `revoked` | BOOLEAN DEFAULT false | | |
+| `created_by` | VARCHAR(255) | | User ID who created the key |
+| `created_at` / `updated_at` | TIMESTAMPTZ | | |
+
+**Indexes:** `key_hash` (partial `NOT revoked`), `prefix`
+
+---
+
 ## Migration History
 
 | Version | Description |
@@ -532,6 +872,17 @@ Telegram group members authorized to use file-writing tools.
 | 8 | Team tasks user scope |
 | 9 | Quota index — partial index on traces for efficient per-user quota counting |
 | 10 | Agents markdown v2 |
+| 11 | `metadata JSONB` on sessions, user_agent_profiles, pairing_requests, paired_devices |
+| 12 | `channel_pending_messages` — group chat message buffer |
+| 13 | `kg_entities` and `kg_relations` — knowledge graph tables |
+| 14 | `channel_contacts` — global unified contact directory |
+| 15 | `budget_monthly_cents` on agents; `activity_logs` audit table |
+| 16 | `usage_snapshots` for hourly metrics; perf indexes on traces and spans |
+| 17 | `is_system`, `deps`, `enabled` on skills |
+| 18 | Team workspace files/versions/comments, task comments/events, task v2 columns (locking, progress, followup, identifier), `team_id` on handoff_routes |
+| 19 | `team_id` FK on memory_documents, memory_chunks, kg_entities, kg_relations, traces, spans, cron_jobs, cron_run_logs, sessions |
+| 20 | `secure_cli_binaries` and `api_keys` tables |
+| 21 | `expires_at` on paired_devices; `confidence_score` on team_tasks, team_messages, team_task_comments |
 
 ---
 

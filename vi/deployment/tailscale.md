@@ -80,8 +80,8 @@ Hoặc qua `config.json` (auth key **không bao giờ** lưu trong config — ch
 |-------|----------|-------|
 | `hostname` | `goclaw-gateway` | Tên thiết bị Tailscale |
 | `state_dir` | OS user config dir | Giữ Tailscale identity qua các lần restart |
-| `ephemeral` | `false` | Nếu true, node bị xóa khỏi Tailscale khi GoClaw dừng |
-| `enable_tls` | `false` | Dùng Tailscale HTTPS certs (listen trên `:443`) |
+| `ephemeral` | `false` | Nếu true, node tự động bị xóa khỏi tailnet khi GoClaw dừng — hữu ích cho CI/CD hoặc container ngắn hạn |
+| `enable_tls` | `false` | Dùng Tailscale-managed HTTPS certs qua Let's Encrypt (listen trên `:443` thay vì `:80`) |
 
 ## Docker Compose Setup
 

@@ -123,8 +123,21 @@ docker compose \
 | `000008_team_tasks_user_scope` | Per-user task scoping |
 | `000009_add_quota_index` | Partial index for quota checker performance |
 | `000010_agents_md_v2` | Agent metadata v2 schema |
+| `000011_session_profile_metadata` | JSONB `metadata` columns on sessions, profiles, pairing |
+| `000012_channel_pending_messages` | `channel_pending_messages` table for group chat history buffer |
+| `000013_knowledge_graph` | `kg_entities`, `kg_relations` tables for semantic entity storage |
+| `000014_channel_contacts` | `channel_contacts` table — global contact directory from channels |
+| `000015_agent_budget` | `budget_monthly_cents` on agents; `activity_logs` audit trail |
+| `000016_usage_snapshots` | `usage_snapshots` table — hourly token/cost aggregation |
+| `000017_system_skills` | `is_system`, `deps`, `enabled` columns on skills |
+| `000018_team_tasks_workspace_followup` | Team workspace files, file versions, comments; task events and comments |
+| `000019_team_id_columns` | `team_id` FK on memory, KG, traces, spans, cron, sessions (9 tables) |
+| `000020_secure_cli_and_api_keys` | `secure_cli_binaries` for credentialed exec; `api_keys` for fine-grained auth |
+| `000021_paired_devices_expiry` | `expires_at` on paired devices; `confidence_score` on team tasks, messages, comments |
 
-Run `./goclaw migrate status` after deployment to confirm the current version.
+> **Data hooks:** GoClaw tracks post-migration Go transforms in a separate `data_migrations` table. Run `./goclaw upgrade --status` to see both SQL migration version and pending data hooks.
+
+Run `./goclaw migrate status` after deployment to confirm the current schema is version 21.
 
 ---
 
@@ -144,6 +157,12 @@ Run `./goclaw migrate status` after deployment to confirm the current version.
 | `cron_jobs` / `cron_run_logs` | Scheduled tasks and run history |
 | `skills` | Skill files with BM25 + vector search |
 | `channel_instances` | Messaging channel configs (Telegram, Discord, etc.) |
+| `activity_logs` | Audit trail — admin actions, config changes, security events |
+| `usage_snapshots` | Hourly aggregated token counts and costs per agent/user |
+| `kg_entities` / `kg_relations` | Knowledge graph — semantic entities and relationships |
+| `channel_contacts` | Unified contact directory synced from all channels |
+| `channel_pending_messages` | Pending group messages buffer for batch processing |
+| `api_keys` | Scoped API keys with SHA-256 hash lookup and revocation |
 
 ---
 
@@ -188,7 +207,7 @@ docker run --rm \
 
 ### Connection pooling
 
-GoClaw uses `pgx/v5` with `database/sql`. For high-concurrency deployments, set pool parameters in the DSN:
+GoClaw uses `pgx/v5` with `database/sql`. The connection pool is hard-coded to **25 max open / 10 max idle** connections. For high-concurrency deployments, ensure your PostgreSQL `max_connections` accommodates this. You can also set pool parameters in the DSN:
 
 ```bash
 GOCLAW_POSTGRES_DSN=postgres://goclaw:password@localhost:5432/goclaw?sslmode=disable&pool_max_conns=20

@@ -66,6 +66,9 @@ API key từ environment ghi đè mọi giá trị trong `config.json`. Đặt k
 | `GOCLAW_PERPLEXITY_API_KEY` | Perplexity |
 | `GOCLAW_DASHSCOPE_API_KEY` | Alibaba DashScope |
 | `GOCLAW_BAILIAN_API_KEY` | Alibaba Bailian |
+| `GOCLAW_OLLAMA_HOST` | URL server Ollama (ví dụ `http://localhost:11434`) |
+| `GOCLAW_OLLAMA_CLOUD_API_KEY` | Ollama Cloud API key |
+| `GOCLAW_OLLAMA_CLOUD_API_BASE` | URL base tùy chỉnh cho Ollama Cloud |
 
 ### Provider & Model Defaults
 
@@ -121,6 +124,8 @@ API key từ environment ghi đè mọi giá trị trong `config.json`. Đặt k
 | `GOCLAW_WORKSPACE` | Thư mục workspace mặc định cho agent. Mặc định: `~/.goclaw/workspace` |
 | `GOCLAW_SESSIONS_STORAGE` | Đường dẫn lưu session (legacy). Mặc định: `~/.goclaw/sessions` |
 | `GOCLAW_SKILLS_DIR` | Thư mục skills global. Mặc định: `~/.goclaw/skills` |
+| `GOCLAW_BUILTIN_SKILLS_DIR` | Đường dẫn đến định nghĩa built-in skill. Mặc định: `./builtin-skills` |
+| `GOCLAW_BUNDLED_SKILLS_DIR` | Đường dẫn đến gói bundled skill. Mặc định: `./bundled-skills` |
 
 ---
 
@@ -136,6 +141,19 @@ API key từ environment ghi đè mọi giá trị trong `config.json`. Đặt k
 | `GOCLAW_SANDBOX_CPUS` | Giới hạn CPU (float, ví dụ `"1.5"`) |
 | `GOCLAW_SANDBOX_TIMEOUT_SEC` | Timeout thực thi (giây) |
 | `GOCLAW_SANDBOX_NETWORK` | `"true"` để bật truy cập mạng container |
+
+---
+
+## Concurrency / Scheduler
+
+Giới hạn lane-based cho số lượng agent chạy đồng thời.
+
+| Biến | Mặc định | Mô tả |
+|------|----------|-------|
+| `GOCLAW_LANE_MAIN` | `30` | Số lượng main agent chạy đồng thời tối đa |
+| `GOCLAW_LANE_SUBAGENT` | `50` | Số lượng subagent chạy đồng thời tối đa |
+| `GOCLAW_LANE_DELEGATE` | `100` | Số lượng delegated agent chạy đồng thời tối đa |
+| `GOCLAW_LANE_CRON` | `30` | Số lượng cron job chạy đồng thời tối đa |
 
 ---
 
@@ -171,6 +189,7 @@ Cần build tag `tsnet` (`go build -tags tsnet`).
 |------|-------|
 | `GOCLAW_TRACE_VERBOSE` | Đặt `1` để log toàn bộ LLM input trong trace span |
 | `GOCLAW_BROWSER_REMOTE_URL` | Kết nối remote browser qua Chrome DevTools Protocol URL. Tự bật browser tool |
+| `GOCLAW_REDIS_DSN` | Chuỗi kết nối Redis (ví dụ `redis://redis:6379/0`). Cần build với `-tags redis` |
 
 ---
 

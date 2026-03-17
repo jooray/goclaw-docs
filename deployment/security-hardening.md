@@ -108,6 +108,18 @@ flowchart TD
     S3 --> A["Allow request"]
 ```
 
+### Credentialed exec (Direct Exec Mode)
+
+For tools that need credentials (e.g., `gh`, `aws`), GoClaw uses direct process execution instead of a shell — eliminating shell injection entirely.
+
+4-layer defense:
+1. **No shell** — `exec.CommandContext(binary, args...)`, never `sh -c`
+2. **Path verification** — binary resolved to absolute path via `exec.LookPath()`, matched against config
+3. **Deny patterns** — per-binary regex deny lists on arguments (`deny_args`) and verbose flags (`deny_verbose`)
+4. **Output scrubbing** — credentials registered at runtime are scrubbed from stdout/stderr
+
+Shell metacharacters (`;`, `|`, `&`, `$()`, backticks) are detected and rejected before execution.
+
 ### Exec approval
 
 See [Exec Approval](../advanced/exec-approval.md) for the full interactive approval flow. At minimum, enable `ask: "on-miss"` to prompt before network and infrastructure tools run:
@@ -142,6 +154,11 @@ All tool output passes through a regex scrubber that redacts known secret format
 | Connection strings | `postgres://...`, `mysql://...` |
 | Env var patterns | `KEY=...`, `SECRET=...`, `DSN=...` |
 | Long hex strings | 64+ character hex sequences |
+| DSN / database URLs | `DSN=...`, `DATABASE_URL=...`, `REDIS_URL=...`, `MONGO_URI=...` |
+| Generic key-value | `api_key=...`, `token=...`, `secret=...`, `bearer=...` (case-insensitive) |
+| Runtime env vars | `VIRTUAL_*=...` patterns |
+
+13 regex patterns in total cover all major secret formats.
 
 Scrubbing is enabled by default. To disable (not recommended):
 
@@ -162,6 +179,8 @@ Content fetched from external URLs is wrapped:
 ```
 
 This signals to the LLM that the content is untrusted and should not be treated as instructions.
+
+The content markers are protected against Unicode homoglyph spoofing — GoClaw sanitizes lookalike characters (e.g., Cyrillic `а` vs Latin `a`) to prevent external content from forging the boundary markers.
 
 ---
 
@@ -250,7 +269,26 @@ WebSocket RPC methods and HTTP endpoints are gated by role. Roles are hierarchic
 | **Operator** | + `chat.send`, `chat.abort`, `sessions.delete/reset`, `cron.*`, `skills.update` |
 | **Admin** | + `config.apply/patch`, `agents.create/update/delete`, `channels.toggle`, `device.pair.approve/revoke` |
 
-Token scopes for narrow access: `operator.admin`, `operator.read`, `operator.write`, `operator.approvals`, `operator.pairing`.
+### API Keys
+
+For fine-grained access control, create scoped API keys instead of sharing the gateway token. Keys are hashed with SHA-256 before storage and cached for 5 minutes.
+
+Authentication priority:
+1. **Gateway token** → Admin role (full access)
+2. **API key** → Role derived from scopes
+3. **No token** → Operator (backward compatibility)
+
+Available scopes:
+
+| Scope | Access level |
+|-------|-------------|
+| `operator.admin` | Full admin access |
+| `operator.read` | Read-only (viewer-equivalent) |
+| `operator.write` | Read + write operations |
+| `operator.approvals` | Exec approval management |
+| `operator.pairing` | Device pairing management |
+
+API keys are passed via `Authorization: Bearer {key}` header, same as the gateway token.
 
 ---
 
@@ -269,6 +307,8 @@ Use this before exposing GoClaw to the internet or shared users:
 - [ ] Enable TLS on PostgreSQL (`sslmode=require` in DSN)
 - [ ] Review `gateway.owner_ids` — only trusted user IDs should have owner-level access
 - [ ] Set `agents.restrict_to_workspace: true` (this is the default — do not disable)
+- [ ] Create scoped API keys for integrations instead of sharing the gateway token
+- [ ] Configure `tools.credentialed_exec` for secure CLI tool integrations (gh, aws, etc.)
 
 ---
 

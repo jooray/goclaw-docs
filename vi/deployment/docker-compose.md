@@ -2,7 +2,7 @@
 
 # Docker Compose Deployment
 
-> GoClaw cung cấp 10 file compose — một file base và 9 overlay để bạn kết hợp linh hoạt tùy theo stack cần triển khai.
+> GoClaw cung cấp 9 file compose — một file base và 8 overlay để bạn kết hợp linh hoạt tùy theo stack cần triển khai.
 
 > **Tự động upgrade khi khởi động:** Docker entrypoint tự động chạy `goclaw upgrade` trước khi khởi động gateway. Điều này áp dụng các database migration đang chờ, nên bạn không cần bước upgrade riêng cho các triển khai đơn giản. Với môi trường production, hãy cân nhắc chạy upgrade overlay riêng trước.
 
@@ -20,7 +20,6 @@ docker-compose.otel.yml       # Jaeger cho OpenTelemetry trace visualization
 docker-compose.tailscale.yml  # Tailscale tsnet để truy cập từ xa an toàn
 docker-compose.redis.yml      # Redis 7 cache backend (tùy chọn)
 docker-compose.upgrade.yml    # One-shot DB migration runner
-docker-compose.vnstock-mcp.yml # Ví dụ: vnstock MCP sidecar (community overlay)
 ```
 
 ---

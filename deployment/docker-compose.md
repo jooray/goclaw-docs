@@ -1,6 +1,6 @@
 # Docker Compose Deployment
 
-> GoClaw ships 10 compose files — a base plus 9 overlays you mix and match to build the exact stack you need.
+> GoClaw ships 9 compose files — a base plus 8 overlays you mix and match to build the exact stack you need.
 
 > **Auto-upgrade on start:** The Docker entrypoint runs `goclaw upgrade` automatically before starting the gateway. This applies pending database migrations so you don't need a separate upgrade step for simple deployments. For production, consider running the upgrade overlay explicitly first.
 
@@ -18,7 +18,6 @@ docker-compose.otel.yml       # Jaeger for OpenTelemetry trace visualization
 docker-compose.tailscale.yml  # Tailscale tsnet for secure remote access
 docker-compose.redis.yml      # Redis 7 cache backend (optional)
 docker-compose.upgrade.yml    # One-shot DB migration runner
-docker-compose.vnstock-mcp.yml # Example: vnstock MCP sidecar (community overlay)
 ```
 
 ---

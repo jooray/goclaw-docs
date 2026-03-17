@@ -141,6 +141,24 @@ services:
 | `goclaw.trace_id` | UUID linking back to PostgreSQL |
 | `goclaw.duration_ms` | Wall-clock duration |
 
+## Usage Analytics
+
+GoClaw aggregates token counts and costs into hourly snapshots via a background worker. These power the dashboard's usage charts and the `/v1/usage` API endpoint.
+
+The `usage_snapshots` table stores pre-computed aggregates per agent, user, and provider — so dashboard queries stay fast even with millions of spans.
+
+An `activity_logs` table records admin actions, config changes, and security events as an audit trail.
+
+## Real-Time Log Streaming
+
+Connected WebSocket clients can subscribe to live log events. The `LogTee` layer intercepts all `slog` records and:
+
+1. Caches the last 100 entries in a ring buffer (new subscribers get recent history)
+2. Broadcasts to subscribed clients at their chosen log level
+3. Auto-redacts sensitive fields: `key`, `token`, `secret`, `password`, `dsn`, `credential`, `authorization`, `cookie`
+
+This means dashboard users see real-time logs without SSH access, and secrets never leak through the log stream.
+
 ## Common Issues
 
 | Issue | Likely cause | Fix |

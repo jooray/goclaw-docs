@@ -139,14 +139,19 @@
   - [IDENTITY.md](reference/templates/identity.md)
   - [TOOLS.md](reference/templates/tools.md)
   - [USER.md](reference/templates/user.md)
+  - [USER_PREDEFINED.md](reference/templates/user-predefined.md)
   - [BOOTSTRAP.md](reference/templates/bootstrap.md)
+  - [TEAM.md](reference/templates/team.md)
 
 ## Troubleshooting
 
 - [Common Issues](troubleshooting/common-issues.md)
+- [WebSocket Issues](troubleshooting/websocket.md)
 - [Channels](troubleshooting/channels.md)
 - [Providers](troubleshooting/providers.md)
+- [MCP](troubleshooting/mcp.md)
 - [Database](troubleshooting/database.md)
+- [Agent Teams](troubleshooting/agent-teams.md)
 
 ---
 
@@ -170,8 +175,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for writing guidelines and bilingual proc
 ├── deployment/             # Deploy & operate (7 pages)
 ├── recipes/                # Step-by-step tutorials (5 pages)
 ├── showcases/              # Gallery & examples (1 page)
-├── reference/              # API, CLI & config reference (13 pages)
-├── troubleshooting/        # Debug & FAQ (4 pages)
+├── reference/              # API, CLI & config reference (15 pages)
+├── troubleshooting/        # Debug & FAQ (7 pages)
 ├── vi/                     # Vietnamese mirror (~96 pages)
 ├── archive/                # Old technical docs (DO NOT reference)
 └── images/dashboard/       # Dashboard screenshots

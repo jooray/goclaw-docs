@@ -4,6 +4,8 @@
 
 > GoClaw cung cấp 9 file compose — một file base và 8 overlay để bạn kết hợp linh hoạt tùy theo stack cần triển khai.
 
+> **Tự động upgrade khi khởi động:** Docker entrypoint tự động chạy `goclaw upgrade` trước khi khởi động gateway. Điều này áp dụng các database migration đang chờ, nên bạn không cần bước upgrade riêng cho các triển khai đơn giản. Với môi trường production, hãy cân nhắc chạy upgrade overlay riêng trước.
+
 ## Tổng quan
 
 Cấu trúc compose được thiết kế theo module. Bạn luôn bắt đầu với `docker-compose.yml` (base) và chồng thêm các overlay bằng `-f`. Mỗi overlay chỉ mở rộng hoặc ghi đè những gì cần thiết.
@@ -16,13 +18,23 @@ docker-compose.sandbox.yml    # Docker-in-Docker sandbox cho agent thực thi co
 docker-compose.browser.yml    # Headless Chrome sidecar (CDP, port 9222)
 docker-compose.otel.yml       # Jaeger cho OpenTelemetry trace visualization
 docker-compose.tailscale.yml  # Tailscale tsnet để truy cập từ xa an toàn
+docker-compose.redis.yml      # Redis 7 cache backend (tùy chọn)
 docker-compose.upgrade.yml    # One-shot DB migration runner
-docker-compose.vnstock-mcp.yml # Ví dụ: vnstock MCP sidecar (community overlay)
 ```
 
 ---
 
 ## Các cấu hình mẫu
+
+### Thiết lập lần đầu
+
+Chạy script chuẩn bị môi trường để tự động tạo các secret cần thiết:
+
+```bash
+./prepare-env.sh
+```
+
+Script này tạo `.env` từ `.env.example` và tự động sinh `GOCLAW_ENCRYPTION_KEY` và `GOCLAW_GATEWAY_TOKEN` nếu chưa có.
 
 ### Tối giản — chỉ core + PostgreSQL
 
@@ -148,6 +160,18 @@ Rebuild với `ENABLE_TSNET=true` để nhúng Tailscale trực tiếp vào bina
 | `GOCLAW_TSNET_AUTH_KEY` | Có | Tailscale auth key từ admin console |
 | `GOCLAW_TSNET_HOSTNAME` | Không (mặc định: `goclaw-gateway`) | Tên thiết bị trên tailnet |
 
+### `docker-compose.redis.yml`
+
+Rebuild GoClaw với `ENABLE_REDIS=true` và khởi động Redis 7 Alpine với AOF persistence.
+
+| Biến | Mặc định | Mô tả |
+|------|----------|-------|
+| `GOCLAW_REDIS_DSN` | `redis://redis:6379/0` | Chuỗi kết nối Redis (tự động cấu hình) |
+
+Build arg: `ENABLE_REDIS=true` — biên dịch Redis cache backend vào binary.
+
+Volume: `redis-data` → `/data` (AOF persistence).
+
 ### `docker-compose.upgrade.yml`
 
 Service one-shot chạy `goclaw upgrade` rồi thoát. Dùng để áp dụng database migration mà không cần downtime.
@@ -177,6 +201,23 @@ docker compose \
 
 ---
 
+## Build Arguments
+
+Đây là các flag biên dịch được truyền vào khi `docker build`. Mỗi flag bật một dependency tùy chọn.
+
+| Build Arg | Mặc định | Tác dụng |
+|-----------|----------|----------|
+| `ENABLE_OTEL` | `false` | OpenTelemetry span exporter |
+| `ENABLE_TSNET` | `false` | Tailscale networking |
+| `ENABLE_REDIS` | `false` | Redis cache backend |
+| `ENABLE_SANDBOX` | `false` | Docker CLI trong container (cho sandbox) |
+| `ENABLE_PYTHON` | `false` | Python 3 runtime cho skills |
+| `ENABLE_NODE` | `false` | Node.js runtime cho skills |
+| `ENABLE_FULL_SKILLS` | `false` | Cài sẵn các skill dependency (pandas, pypdf, v.v.) |
+| `VERSION` | `dev` | Chuỗi semantic version |
+
+---
+
 ## Volumes
 
 | Volume | Mount path | Nội dung |
@@ -186,6 +227,7 @@ docker compose \
 | `goclaw-skills` | `/app/skills` | Skill files |
 | `postgres-data` | `/var/lib/postgresql` | Dữ liệu PostgreSQL |
 | `tsnet-state` | `/app/tsnet-state` | Tailscale node state |
+| `redis-data` | `/data` | Redis AOF persistence |
 
 ---
 
@@ -228,6 +270,87 @@ docker compose \
 
 # 3. Khởi động lại stack
 docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d --build
+```
+
+---
+
+## Các cách cài đặt khác
+
+### Cài bằng binary (không dùng Docker)
+
+Tải binary mới nhất trực tiếp:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nextlevelbuilder/goclaw/main/scripts/install.sh | bash
+
+# Phiên bản cụ thể
+curl -fsSL https://raw.githubusercontent.com/nextlevelbuilder/goclaw/main/scripts/install.sh | bash -s -- --version v1.19.1
+
+# Thư mục tùy chỉnh
+curl -fsSL https://raw.githubusercontent.com/nextlevelbuilder/goclaw/main/scripts/install.sh | bash -s -- --dir /opt/goclaw
+```
+
+Hỗ trợ Linux và macOS (amd64 và arm64).
+
+### Cài đặt Docker tương tác
+
+Script setup tự sinh `.env` và tạo lệnh compose phù hợp:
+
+```bash
+./scripts/setup-docker.sh              # Chế độ tương tác
+./scripts/setup-docker.sh --variant full --with-ui   # Không tương tác
+```
+
+Variant: `alpine` (base), `node`, `python`, `full`. Thêm `--with-ui` để bật dashboard, `--dev` cho chế độ development với live reload.
+
+---
+
+## Docker Images dựng sẵn
+
+Các image multi-arch (amd64 + arm64) chính thức được publish sau mỗi release lên cả hai registry:
+
+| Registry | Gateway | Web Dashboard |
+|----------|---------|--------------|
+| Docker Hub | `digitop/goclaw` | `digitop/goclaw-web` |
+| GHCR | `ghcr.io/nextlevelbuilder/goclaw` | `ghcr.io/nextlevelbuilder/goclaw-web` |
+
+### Các tag variant
+
+Image được chia thành **runtime variant** (những gì được cài sẵn) và **build-tag variant** (tính năng biên dịch sẵn):
+
+**Runtime variants:**
+
+| Tag | Node.js | Python | Skill deps | Trường hợp sử dụng |
+|-----|---------|--------|------------|-------------------|
+| `latest` / `vX.Y.Z` | — | — | — | Base tối giản (~50 MB) |
+| `node` / `vX.Y.Z-node` | ✓ | — | — | Skill JS/TS |
+| `python` / `vX.Y.Z-python` | — | ✓ | — | Skill Python |
+| `full` / `vX.Y.Z-full` | ✓ | ✓ | ✓ | Tất cả skill dependency được cài sẵn |
+
+**Build-tag variants:**
+
+| Tag | OTel | Tailscale | Redis | Trường hợp sử dụng |
+|-----|------|-----------|-------|-------------------|
+| `otel` / `vX.Y.Z-otel` | ✓ | — | — | OpenTelemetry tracing |
+| `tsnet` / `vX.Y.Z-tsnet` | — | ✓ | — | Truy cập từ xa qua Tailscale |
+| `redis` / `vX.Y.Z-redis` | — | — | ✓ | Redis caching |
+
+> **Mẹo:** Runtime variant và build-tag variant độc lập với nhau. Nếu cần Python + OTel, hãy build local với `ENABLE_PYTHON=true` và `ENABLE_OTEL=true`.
+
+Ví dụ pull image:
+
+```bash
+# Bản tối giản mới nhất
+docker pull digitop/goclaw:latest
+
+# Với Python runtime
+docker pull digitop/goclaw:python
+
+# Full runtime (Node + Python + tất cả deps)
+docker pull digitop/goclaw:full
+
+# Với OTel tracing
+docker pull ghcr.io/nextlevelbuilder/goclaw:otel
 ```
 
 ---

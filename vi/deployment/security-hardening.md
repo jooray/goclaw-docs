@@ -110,6 +110,18 @@ flowchart TD
     S3 --> A["Cho phép request"]
 ```
 
+### Credentialed exec (Direct Exec Mode)
+
+Với các tool cần credentials (ví dụ: `gh`, `aws`), GoClaw dùng direct process execution thay vì shell — loại bỏ hoàn toàn khả năng shell injection.
+
+4 lớp bảo vệ:
+1. **Không dùng shell** — `exec.CommandContext(binary, args...)`, không bao giờ `sh -c`
+2. **Kiểm tra path** — binary được resolve thành absolute path qua `exec.LookPath()`, khớp với config
+3. **Deny patterns** — danh sách regex deny theo từng binary cho arguments (`deny_args`) và verbose flags (`deny_verbose`)
+4. **Output scrubbing** — credentials đăng ký lúc runtime được scrub khỏi stdout/stderr
+
+Shell metacharacter (`;`, `|`, `&`, `$()`, backtick) được phát hiện và từ chối trước khi thực thi.
+
 ### Exec approval
 
 Xem [Exec Approval](../advanced/exec-approval.md) để biết flow phê duyệt đầy đủ. Tối thiểu, bật `ask: "on-miss"` để hỏi trước khi chạy các network và infrastructure tool:
@@ -144,6 +156,11 @@ Tất cả tool output đi qua regex scrubber để redact các secret format đ
 | Connection strings | `postgres://...`, `mysql://...` |
 | Env var patterns | `KEY=...`, `SECRET=...`, `DSN=...` |
 | Chuỗi hex dài | Chuỗi hex 64+ ký tự |
+| DSN / database URLs | `DSN=...`, `DATABASE_URL=...`, `REDIS_URL=...`, `MONGO_URI=...` |
+| Generic key-value | `api_key=...`, `token=...`, `secret=...`, `bearer=...` (không phân biệt hoa thường) |
+| Runtime env vars | Các pattern `VIRTUAL_*=...` |
+
+13 regex pattern tổng cộng bao phủ tất cả các secret format phổ biến.
 
 Scrubbing bật mặc định. Để tắt (không khuyến nghị):
 
@@ -164,6 +181,8 @@ Nội dung fetch từ URL bên ngoài được bọc:
 ```
 
 Điều này báo hiệu cho LLM rằng nội dung không đáng tin và không được coi là instructions.
+
+Các content marker được bảo vệ chống Unicode homoglyph spoofing — GoClaw sanitize các ký tự trông giống nhau (ví dụ: chữ `а` Cyrillic vs chữ `a` Latin) để ngăn nội dung bên ngoài giả mạo boundary marker.
 
 ---
 
@@ -252,7 +271,26 @@ WebSocket RPC method và HTTP endpoint được kiểm soát theo role. Role có
 | **Operator** | + `chat.send`, `chat.abort`, `sessions.delete/reset`, `cron.*`, `skills.update` |
 | **Admin** | + `config.apply/patch`, `agents.create/update/delete`, `channels.toggle`, `device.pair.approve/revoke` |
 
-Token scopes để truy cập hạn chế: `operator.admin`, `operator.read`, `operator.write`, `operator.approvals`, `operator.pairing`.
+### API Keys
+
+Để kiểm soát truy cập chi tiết hơn, hãy tạo API key có scope thay vì chia sẻ gateway token. Key được hash bằng SHA-256 trước khi lưu và cache trong 5 phút.
+
+Thứ tự ưu tiên xác thực:
+1. **Gateway token** → Admin role (toàn quyền)
+2. **API key** → Role được suy ra từ scopes
+3. **Không có token** → Operator (tương thích ngược)
+
+Các scope có sẵn:
+
+| Scope | Cấp độ truy cập |
+|-------|----------------|
+| `operator.admin` | Toàn quyền admin |
+| `operator.read` | Chỉ đọc (tương đương viewer) |
+| `operator.write` | Đọc + ghi |
+| `operator.approvals` | Quản lý exec approval |
+| `operator.pairing` | Quản lý device pairing |
+
+API key được truyền qua header `Authorization: Bearer {key}`, giống như gateway token.
 
 ---
 
@@ -271,6 +309,8 @@ Dùng trước khi expose GoClaw ra internet hoặc cho người dùng chia sẻ
 - [ ] Bật TLS trên PostgreSQL (`sslmode=require` trong DSN)
 - [ ] Review `gateway.owner_ids` — chỉ user ID tin cậy mới có quyền owner
 - [ ] Đặt `agents.restrict_to_workspace: true` (đây là mặc định — không tắt)
+- [ ] Tạo scoped API key cho các integration thay vì chia sẻ gateway token
+- [ ] Cấu hình `tools.credentialed_exec` cho các CLI tool integration an toàn (gh, aws, v.v.)
 
 ---
 

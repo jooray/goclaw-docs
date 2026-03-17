@@ -125,8 +125,21 @@ docker compose \
 | `000008_team_tasks_user_scope` | Phân scope task theo từng user |
 | `000009_add_quota_index` | Partial index để tăng hiệu suất quota checker |
 | `000010_agents_md_v2` | Schema agent metadata v2 |
+| `000011_session_profile_metadata` | Cột JSONB `metadata` trên sessions, profiles, pairing |
+| `000012_channel_pending_messages` | Bảng `channel_pending_messages` — buffer lịch sử chat nhóm |
+| `000013_knowledge_graph` | Bảng `kg_entities`, `kg_relations` — lưu trữ entity theo ngữ nghĩa |
+| `000014_channel_contacts` | Bảng `channel_contacts` — danh bạ liên lạc toàn cục từ các channel |
+| `000015_agent_budget` | `budget_monthly_cents` trên agents; audit trail `activity_logs` |
+| `000016_usage_snapshots` | Bảng `usage_snapshots` — tổng hợp token/chi phí theo giờ |
+| `000017_system_skills` | Cột `is_system`, `deps`, `enabled` trên skills |
+| `000018_team_tasks_workspace_followup` | File workspace team, phiên bản file, comment; event và comment task |
+| `000019_team_id_columns` | FK `team_id` trên memory, KG, traces, spans, cron, sessions (9 bảng) |
+| `000020_secure_cli_and_api_keys` | `secure_cli_binaries` để exec có xác thực; `api_keys` cho auth chi tiết |
+| `000021_paired_devices_expiry` | `expires_at` trên paired devices; `confidence_score` trên team tasks, messages, comments |
 
-Chạy `./goclaw migrate status` sau khi deploy để xác nhận phiên bản hiện tại.
+> **Data hooks:** GoClaw theo dõi các Go transform sau migration trong bảng `data_migrations` riêng. Chạy `./goclaw upgrade --status` để xem cả phiên bản SQL migration và các data hook đang chờ.
+
+Chạy `./goclaw migrate status` sau khi deploy để xác nhận schema hiện tại là phiên bản 20.
 
 ---
 
@@ -146,6 +159,12 @@ Chạy `./goclaw migrate status` sau khi deploy để xác nhận phiên bản h
 | `cron_jobs` / `cron_run_logs` | Scheduled tasks và lịch sử chạy |
 | `skills` | Skill files với BM25 + vector search |
 | `channel_instances` | Cấu hình messaging channel (Telegram, Discord, v.v.) |
+| `activity_logs` | Audit trail — hành động admin, thay đổi config, sự kiện bảo mật |
+| `usage_snapshots` | Tổng hợp token count và chi phí theo giờ mỗi agent/user |
+| `kg_entities` / `kg_relations` | Knowledge graph — entity và quan hệ theo ngữ nghĩa |
+| `channel_contacts` | Danh bạ liên lạc thống nhất đồng bộ từ tất cả channel |
+| `channel_pending_messages` | Buffer tin nhắn nhóm đang chờ để xử lý hàng loạt |
+| `api_keys` | API key có phạm vi với SHA-256 hash lookup và thu hồi |
 
 ---
 
@@ -190,7 +209,7 @@ docker run --rm \
 
 ### Connection pooling
 
-GoClaw dùng `pgx/v5` với `database/sql`. Với các triển khai high-concurrency, đặt tham số pool trong DSN:
+GoClaw dùng `pgx/v5` với `database/sql`. Connection pool được cố định ở **25 max open / 10 max idle** connections. Với các triển khai high-concurrency, đảm bảo PostgreSQL `max_connections` đủ cho con số này. Bạn cũng có thể đặt tham số pool trong DSN:
 
 ```bash
 GOCLAW_POSTGRES_DSN=postgres://goclaw:password@localhost:5432/goclaw?sslmode=disable&pool_max_conns=20

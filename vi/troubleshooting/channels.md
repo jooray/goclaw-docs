@@ -81,7 +81,7 @@ GOCLAW_LARK_VERIFICATION_TOKEN=your_token
 
 ## Zalo
 
-Zalo OA Bot **chỉ DM** (không có group chat) với giới hạn 2000 ký tự text. Chạy ở polling mode.
+Zalo OA Bot **chỉ DM** (không có group chat) với giới hạn 2000 ký tự text mỗi tin nhắn. GoClaw tự chunk response dài hơn. Chạy ở polling mode.
 
 | Vấn đề | Nguyên nhân | Cách xử lý |
 |--------|-------------|------------|

@@ -20,6 +20,15 @@ GoClaw yêu cầu PostgreSQL 15+ với extension `pgvector` và `pgcrypto`. Kế
 
 GoClaw dùng connection pool cố định: **25 max open connections**, **10 max idle connections**. Điều chỉnh `max_connections` trong `postgresql.conf` nếu chạy nhiều GoClaw instance.
 
+**Triệu chứng connection pool cạn kiệt:** Khi cả 25 connection đang dùng, request mới phải chờ. Triệu chứng gồm query latency tăng đột ngột, lỗi timeout, và log dạng `pq: sorry, too many clients already`. Để chẩn đoán:
+
+```sql
+-- Kiểm tra số connection đang hoạt động đến database goclaw
+SELECT count(*) FROM pg_stat_activity WHERE datname = 'goclaw';
+```
+
+Nếu chạy nhiều GoClaw instance, đảm bảo `max_connections` trong `postgresql.conf` tối thiểu là `25 × số_instance + 5`.
+
 ## Lỗi Migration
 
 Chạy migration thủ công:
@@ -48,6 +57,22 @@ Chạy migration thủ công:
 # Rồi áp dụng lại migration
 ./goclaw migrate up
 ```
+
+## Extension pgvector và pgcrypto
+
+GoClaw yêu cầu **cả hai** `pgvector` và `pgcrypto`. Migration đầu tiên (`000001_init_schema.up.sql`) tạo cả hai extension:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "vector";
+```
+
+`pgcrypto` được dùng để tạo UUID (`gen_random_uuid()`). Nó được đóng gói trong package `postgresql-contrib` trên hầu hết platform.
+
+| Vấn đề | Nguyên nhân | Cách xử lý |
+|--------|-------------|------------|
+| `extension "pgcrypto" does not exist` | `postgresql-contrib` chưa cài | `apt install postgresql-contrib` (Debian) hoặc `brew install postgresql` đã bao gồm sẵn |
+| Migration lỗi ở `CREATE EXTENSION IF NOT EXISTS "pgcrypto"` | Không đủ quyền | Kết nối với superuser hoặc cấp quyền `CREATE EXTENSION` |
 
 ## pgvector Extension
 
@@ -105,6 +130,18 @@ SET work_mem = '256MB';
 
 ## Embedding Backfill
 
+GoClaw tự động backfill embedding khi khởi động. Khi provider có khả năng embedding (Anthropic hoặc OpenAI) được cấu hình, GoClaw chạy background goroutine gọi `BackfillEmbeddings` (memory chunks) và `BackfillSkillEmbeddings` (skills) cho các row có `embedding IS NULL`. Quá trình này chạy một lần mỗi lần khởi động.
+
+Theo dõi các log khởi động sau:
+
+```
+INFO memory embeddings enabled provider=anthropic model=text-embedding-3-small
+INFO memory embeddings backfill complete chunks_updated=42
+INFO skill embeddings backfill complete updated=5
+```
+
+Nếu log hiển thị `memory embeddings disabled (no API key), chunks stored without vectors`, hãy cấu hình embedding provider trước.
+
 Nếu memory document hoặc skill được thêm trước khi cấu hình embedding provider, cột `embedding` của chúng sẽ là NULL và vector search sẽ bỏ qua chúng.
 
 Kiểm tra row chưa có embedding:
@@ -114,7 +151,7 @@ SELECT COUNT(*) FROM memory_chunks WHERE embedding IS NULL;
 SELECT COUNT(*) FROM skills WHERE embedding IS NULL AND status = 'active';
 ```
 
-Để trigger backfill, save lại document qua API hoặc dashboard. Công cụ automated backfill đầy đủ chưa có trong CLI.
+Nếu backfill thất bại (kiểm tra log tìm `memory embeddings backfill failed`), restart GoClaw sau khi sửa provider — backfill sẽ tự động chạy lại.
 
 ## Backup và Restore
 

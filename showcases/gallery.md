@@ -19,11 +19,14 @@ A single agent on Telegram for personal use.
       "provider": "openrouter",
       "model": "anthropic/claude-sonnet-4-5-20250929",
       "agent_type": "open",
-      "memory": true
+      "memory": { "enabled": true }
     }
   },
   "channels": {
-    "telegram": { "enabled": true, "token": "env:TELEGRAM_BOT_TOKEN" }
+    "telegram": {
+      "enabled": true,
+      "token": "" // from @BotFather
+    }
   }
 }
 ```
@@ -41,15 +44,18 @@ A predefined agent shared across a development team on Discord.
       "code-bot": {
         "agent_type": "predefined",
         "provider": "anthropic",
-        "model": "claude-opus-4-20250514",
-        "tools_profile": "coding",
+        "model": "claude-opus-4-6",
+        "tools": { "profile": "coding" },
         "temperature": 0.3,
         "max_tool_iterations": 50
       }
     }
   },
   "channels": {
-    "discord": { "enabled": true, "token": "env:DISCORD_BOT_TOKEN" }
+    "discord": {
+      "enabled": true,
+      "token": "" // from Discord Developer Portal
+    }
   }
 }
 ```
@@ -66,13 +72,19 @@ One agent available on Telegram, Discord, and WebSocket simultaneously.
     "list": {
       "support-bot": {
         "agent_type": "predefined",
-        "tools_profile": "messaging"
+        "tools": { "profile": "messaging" }
       }
     }
   },
   "channels": {
-    "telegram": { "enabled": true, "token": "env:TELEGRAM_BOT_TOKEN" },
-    "discord": { "enabled": true, "token": "env:DISCORD_BOT_TOKEN" }
+    "telegram": {
+      "enabled": true,
+      "token": "" // Telegram bot token
+    },
+    "discord": {
+      "enabled": true,
+      "token": "" // Discord bot token
+    }
   }
 }
 ```
@@ -89,17 +101,17 @@ A lead agent that delegates specialized tasks to other agents.
     "list": {
       "lead": {
         "provider": "anthropic",
-        "model": "claude-opus-4-20250514"
+        "model": "claude-opus-4-6"
       },
       "researcher": {
         "provider": "openrouter",
         "model": "google/gemini-2.5-pro",
-        "tools_profile": "coding"
+        "tools": { "profile": "coding" }
       },
       "writer": {
         "provider": "anthropic",
         "model": "claude-sonnet-4-5-20250929",
-        "tools_profile": "messaging"
+        "tools": { "profile": "messaging" }
       }
     }
   }
@@ -107,18 +119,6 @@ A lead agent that delegates specialized tasks to other agents.
 ```
 
 **What you get:** The lead agent coordinates work, delegating research to a Gemini-powered agent and writing tasks to a Claude-powered agent. Each uses the best model for its role.
-
-## Dashboard Screenshots
-
-The GoClaw web dashboard provides visual management for all features:
-
-- **Agent Management** — Create, configure, and test agents
-- **Channel Configuration** — Connect messaging platforms
-- **Traces Viewer** — Monitor LLM calls, costs, and performance
-- **Team Board** — Manage agent teams and task delegation
-- **Skills Browser** — Upload and search agent skills
-
-Screenshots are available in the `images/dashboard/` directory.
 
 ## Community
 

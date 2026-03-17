@@ -13,6 +13,7 @@ This checklist covers the critical steps to harden, secure, and reliably operate
 - [ ] PostgreSQL 15+ is running with the **pgvector** extension installed
 - [ ] `GOCLAW_POSTGRES_DSN` is set via environment — never in `config.json`
 - [ ] Connection pool is sized for your expected concurrency
+- [ ] Database connection pool uses 25 max open / 10 max idle connections (hard-coded) — ensure your PostgreSQL `max_connections` accommodates this plus other clients
 - [ ] Automated backups are configured (daily minimum, test restore quarterly)
 - [ ] Schema is up to date: `./goclaw upgrade --status` shows `UP TO DATE`
 
@@ -63,6 +64,7 @@ export GOCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)
 
 - [ ] `gateway.rate_limit_rpm` is set (default: 20 requests/minute per user, 0 = disabled)
 - [ ] `tools.rate_limit_per_hour` is set (default: 150 tool executions/hour per session, 0 = disabled)
+- [ ] Webhook rate limiting is built-in (30 requests/60s per source, max 4096 tracked sources) — no configuration needed
 
 ```json
 {
@@ -86,6 +88,8 @@ If agents execute code, review the sandbox settings:
 - [ ] `sandbox.network_enabled` is `false` unless agents explicitly need network access
 - [ ] `sandbox.read_only_root` is `true` (default) for immutable container root filesystem
 - [ ] `sandbox.timeout_sec` is set to a reasonable limit (default: 300s)
+- [ ] `sandbox.idle_hours` tuned (default: 24 — removes containers idle longer than this)
+- [ ] `sandbox.max_age_days` set (default: 7 — removes containers older than this)
 
 ```json
 {
@@ -120,8 +124,9 @@ If agents execute code, review the sandbox settings:
 - [ ] Log output is collected (stdout/stderr) — GoClaw uses structured JSON logging via `slog`
 - [ ] Alert on repeated `slog.Warn("security.*")` log entries — these indicate blocked attacks or anomalies
 - [ ] Alert on `tracing: span buffer full` — indicates the collector is falling behind under load
-- [ ] Uptime monitoring is configured (e.g. ping `/healthz` or the gateway port)
+- [ ] Uptime monitoring is configured (e.g. ping `/health` or the gateway port)
 - [ ] Consider enabling OTel export for trace-level visibility — see [Observability](./observability.md)
+- [ ] Interactive API documentation is available at `/docs` (Swagger UI) and `/v1/openapi.json` for integration testing
 
 ---
 
@@ -134,7 +139,76 @@ If agents execute code, review the sandbox settings:
 
 ---
 
+## 9. API Key Management
+
+- [ ] Consider creating scoped API keys instead of sharing the gateway token
+- [ ] API keys support fine-grained scopes: `operator.admin`, `operator.read`, `operator.write`, `operator.approvals`, `operator.pairing`
+- [ ] Keys are hashed (SHA-256) before storage — the plaintext is shown only at creation time
+- [ ] Set up key rotation policy — keys can be revoked individually without affecting others
+
+```json
+// Example: create a read-only key for monitoring
+// via dashboard or API
+{
+  "name": "monitoring-readonly",
+  "scopes": ["operator.read"]
+}
+```
+
+---
+
+## 10. Concurrency Tuning
+
+GoClaw uses lane-based scheduling to limit concurrent agent runs by type:
+
+| Environment Variable | Default | Purpose |
+|---------------------|---------|---------|
+| `GOCLAW_LANE_MAIN` | `30` | Max concurrent main agent runs |
+| `GOCLAW_LANE_SUBAGENT` | `50` | Max concurrent subagent runs |
+| `GOCLAW_LANE_DELEGATE` | `100` | Max concurrent delegated runs |
+| `GOCLAW_LANE_CRON` | `30` | Max concurrent cron job runs |
+
+Tune these based on your server resources and expected load. Lower values reduce memory pressure; higher values improve throughput.
+
+---
+
+## 11. Gateway Tuning
+
+Review these gateway settings for your deployment:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `gateway.owner_ids` | `[]` | User IDs with owner-level access — keep this list minimal |
+| `gateway.max_message_chars` | `32000` | Max user message size before truncation |
+| `gateway.inbound_debounce_ms` | `1000` | Merge rapid consecutive messages (ms) |
+| `gateway.task_recovery_interval_sec` | `300` | How often team tasks are checked for recovery |
+
+- [ ] `gateway.owner_ids` contains only trusted admin user IDs
+- [ ] `gateway.max_message_chars` is appropriate for your use case (lower = less token spend)
+
+---
+
 ## Quick Verification
+
+### First-Time Setup
+
+For new installations, the `onboard` command handles initial setup interactively:
+
+```bash
+./goclaw onboard
+```
+
+It generates encryption and gateway tokens, runs database migrations, and walks you through basic configuration. You can also run `prepare-env.sh` for non-interactive secret generation.
+
+### System Health Check
+
+The `doctor` command runs a comprehensive check of your environment:
+
+```bash
+./goclaw doctor
+```
+
+It validates: runtime info, config file, database connection and schema version, provider API keys, channel credentials, external tools (docker, curl, git), and workspace directories.
 
 ```bash
 # Check schema and pending migrations
@@ -142,7 +216,7 @@ If agents execute code, review the sandbox settings:
 
 # Verify gateway starts and connects to DB
 ./goclaw &
-curl http://localhost:18790/healthz
+curl http://localhost:18790/health
 
 # Confirm secrets are not exposed in logs
 # Look for "***" masking, not raw key values

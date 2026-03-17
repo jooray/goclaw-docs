@@ -261,6 +261,53 @@ Messaging channel configuration.
 | `enabled` | boolean | `false` | Enable WhatsApp channel |
 | `bridge_url` | string | — | WhatsApp bridge service URL |
 
+### `channels.slack`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable Slack channel |
+| `bot_token` | string | — | Bot User OAuth Token (`xoxb-...`) |
+| `app_token` | string | — | App-Level Token for Socket Mode (`xapp-...`) |
+| `user_token` | string | — | Optional User OAuth Token (`xoxp-...`) for custom bot identity |
+| `allow_from` | string[] | — | Allowlist of user IDs |
+| `dm_policy` | string | `pairing` | `"pairing"`, `"allowlist"`, `"open"`, `"disabled"` |
+| `group_policy` | string | `open` | `"open"`, `"pairing"`, `"allowlist"`, `"disabled"` |
+| `require_mention` | boolean | `true` | Require @bot mention in channels |
+| `history_limit` | integer | `50` | Max pending messages for context (0 = disabled) |
+| `dm_stream` | boolean | `false` | Progressive streaming for DMs |
+| `group_stream` | boolean | `false` | Progressive streaming for groups |
+| `native_stream` | boolean | `false` | Use Slack ChatStreamer API if available |
+| `reaction_level` | string | `off` | `"off"`, `"minimal"`, `"full"` — status emoji reactions |
+| `block_reply` | boolean | — | Override gateway `block_reply` (unset = inherit) |
+| `debounce_delay` | integer | `300` | Ms delay before dispatching rapid messages (0 = disabled) |
+| `thread_ttl` | integer | `24` | Hours before thread participation expires (0 = always require @mention) |
+| `media_max_bytes` | integer | `20971520` | Max file download size (20 MB default) |
+
+### `channels.zalo_personal`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable Zalo Personal channel |
+| `allow_from` | string[] | — | Allowlist of user IDs |
+| `dm_policy` | string | `pairing` | `"pairing"`, `"allowlist"`, `"open"`, `"disabled"` |
+| `group_policy` | string | `open` | `"open"`, `"allowlist"`, `"disabled"` |
+| `require_mention` | boolean | `true` | Require @bot mention in groups |
+| `history_limit` | integer | `50` | Max pending group messages for context (0 = disabled) |
+| `credentials_path` | string | — | Path to saved session cookies JSON |
+| `block_reply` | boolean | — | Override gateway `block_reply` (unset = inherit) |
+
+### `channels.pending_compaction`
+
+When a group accumulates more pending messages than `threshold`, older messages are summarized by an LLM before being sent to the agent, keeping `keep_recent` raw messages at the end.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `threshold` | integer | `50` | Trigger compaction when pending message count exceeds this |
+| `keep_recent` | integer | `15` | Number of recent raw messages to keep after compaction |
+| `max_tokens` | integer | `4096` | Max output tokens for the LLM summarization call |
+| `provider` | string | — | LLM provider for summarization (empty = use agent's provider) |
+| `model` | string | — | Model for summarization (empty = use agent's model) |
+
 ---
 
 ## `gateway`
@@ -271,9 +318,14 @@ Messaging channel configuration.
 | `port` | integer | `18790` | Listen port |
 | `token` | string | — | Bearer token for auth (keep in env) |
 | `owner_ids` | string[] | — | User IDs with admin/owner access |
+| `allowed_origins` | string[] | `[]` | Allowed WebSocket CORS origins (empty = allow all) |
 | `max_message_chars` | integer | `32000` | Max incoming message length |
+| `inbound_debounce_ms` | integer | `1000` | Merge rapid consecutive messages (ms) |
 | `rate_limit_rpm` | integer | `20` | WebSocket rate limit (requests per minute) |
-| `injection_action` | string | — | Action for injected messages |
+| `injection_action` | string | `warn` | `"off"`, `"log"`, `"warn"`, `"block"` — prompt injection response |
+| `block_reply` | boolean | `false` | Deliver intermediate text to users during tool iterations |
+| `tool_status` | boolean | `true` | Show tool name in streaming preview during tool execution |
+| `task_recovery_interval_sec` | integer | `300` | Team task recovery check interval |
 | `quota` | object | — | Per-user request quota config |
 
 ---
@@ -282,6 +334,11 @@ Messaging channel configuration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `profile` | string | — | Tool profile preset: `"minimal"`, `"coding"`, `"messaging"`, `"full"` |
+| `allow` | string[] | — | Explicit tool allowlist (tool names or `"group:xxx"`) |
+| `deny` | string[] | — | Explicit tool denylist |
+| `alsoAllow` | string[] | — | Additive allowlist — merged with profile without removing existing tools |
+| `byProvider` | object | — | Per-provider tool policy overrides (keyed by provider name) |
 | `rate_limit_per_hour` | integer | `150` | Max tool calls per session per hour |
 | `scrub_credentials` | boolean | `true` | Scrub secrets from tool outputs |
 
@@ -341,7 +398,61 @@ Array of MCP server configs. Each entry:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `storage` | string | `~/.goclaw/sessions` | Session storage path (legacy, not used in PostgreSQL mode) |
+| `scope` | string | `per-sender` | Session scope: `"per-sender"` (each user gets their own session) or `"global"` (all users share one session) |
+| `dm_scope` | string | `per-channel-peer` | DM session isolation: `"main"`, `"per-peer"`, `"per-channel-peer"`, `"per-account-channel-peer"` |
+| `main_key` | string | `main` | Main session key suffix (used when `dm_scope` is `"main"`) |
+
+---
+
+## `tts`
+
+Text-to-speech output. Configure a provider and optionally enable auto-TTS.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `provider` | string | — | TTS provider: `"openai"`, `"elevenlabs"`, `"edge"`, `"minimax"` |
+| `auto` | string | `off` | When to auto-speak: `"off"`, `"always"`, `"inbound"` (only reply to voice), `"tagged"` |
+| `mode` | string | `final` | Which responses to speak: `"final"` (complete reply only) or `"all"` (each streamed chunk) |
+| `max_length` | integer | `1500` | Max text length before truncation |
+| `timeout_ms` | integer | `30000` | TTS API timeout in milliseconds |
+
+### `tts.openai`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `api_key` | string | — | OpenAI API key (keep in env: `GOCLAW_TTS_OPENAI_API_KEY`) |
+| `api_base` | string | — | Custom endpoint URL |
+| `model` | string | `gpt-4o-mini-tts` | TTS model |
+| `voice` | string | `alloy` | Voice name |
+
+### `tts.elevenlabs`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `api_key` | string | — | ElevenLabs API key (keep in env: `GOCLAW_TTS_ELEVENLABS_API_KEY`) |
+| `base_url` | string | — | Custom base URL |
+| `voice_id` | string | `pMsXgVXv3BLzUgSXRplE` | Voice ID |
+| `model_id` | string | `eleven_multilingual_v2` | Model ID |
+
+### `tts.edge`
+
+Microsoft Edge TTS — free, no API key required.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable Edge TTS provider |
+| `voice` | string | `en-US-MichelleNeural` | Voice name (SSML-compatible) |
+| `rate` | string | `+0%` | Speech rate adjustment (e.g. `"+10%"`, `"-5%"`) |
+
+### `tts.minimax`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `api_key` | string | — | MiniMax API key (keep in env: `GOCLAW_TTS_MINIMAX_API_KEY`) |
+| `group_id` | string | — | MiniMax GroupId (required; keep in env: `GOCLAW_TTS_MINIMAX_GROUP_ID`) |
+| `api_base` | string | `https://api.minimax.io/v1` | API base URL |
+| `model` | string | `speech-02-hd` | TTS model |
+| `voice_id` | string | `Wise_Woman` | Voice ID |
 
 ---
 
@@ -352,6 +463,7 @@ Array of MCP server configs. Each entry:
 | `max_retries` | integer | `3` | Max retry attempts on job failure (0 = no retry) |
 | `retry_base_delay` | string | `2s` | Initial retry backoff (Go duration, e.g. `"2s"`) |
 | `retry_max_delay` | string | `30s` | Maximum retry backoff |
+| `default_timezone` | string | — | IANA timezone for cron expressions when not set per-job (e.g. `"Asia/Ho_Chi_Minh"`, `"America/New_York"`) |
 
 ---
 

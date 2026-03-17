@@ -11,7 +11,7 @@ Một lần upgrade GoClaw có hai phần:
 1. **SQL migrations** — thay đổi schema áp dụng bởi `golang-migrate` (idempotent, có phiên bản)
 2. **Data hooks** — Go-based data transformation tùy chọn chạy sau schema migrations (ví dụ backfill cột mới)
 
-Lệnh `./goclaw upgrade` xử lý cả hai theo đúng thứ tự. An toàn khi chạy nhiều lần — hoàn toàn idempotent.
+Lệnh `./goclaw upgrade` xử lý cả hai theo đúng thứ tự. An toàn khi chạy nhiều lần — hoàn toàn idempotent. Phiên bản schema hiện tại yêu cầu là **21**.
 
 ```mermaid
 graph LR
@@ -193,6 +193,31 @@ Force migration version về trạng thái tốt cuối cùng, rồi chạy lạ
 ```
 
 Chỉ làm điều này nếu bạn hiểu migration lỗi đã làm gì. Khi không chắc, restore từ backup.
+
+### Tất cả migrate subcommands
+
+```bash
+./goclaw migrate up              # Áp dụng migration đang chờ
+./goclaw migrate down            # Rollback một bước
+./goclaw migrate down 3          # Rollback 3 bước
+./goclaw migrate version         # Hiển thị version hiện tại + dirty state
+./goclaw migrate force <version> # Force version (chỉ dùng khi recovery)
+./goclaw migrate goto <version>  # Migrate đến version cụ thể
+./goclaw migrate drop            # DROP ALL TABLES (nguy hiểm — chỉ dùng ở dev)
+```
+
+> **Theo dõi data hooks:** GoClaw lưu các Go transform sau migration trong bảng `data_migrations` riêng biệt (khác với `schema_migrations`). Chạy `./goclaw upgrade --status` để xem cả SQL migration version và data hooks đang chờ.
+
+## Biến môi trường đã bị xóa gần đây
+
+Các biến môi trường sau đã bị xóa và sẽ bị bỏ qua nếu còn đặt:
+
+| Biến đã xóa | Lý do | Cách chuyển đổi |
+|-------------|-------|-----------------|
+| `GOCLAW_SESSIONS_STORAGE` | Sessions giờ chỉ dùng PostgreSQL | Xóa khỏi `.env` — không cần thay thế |
+| `GOCLAW_MODE` | Managed mode giờ là mặc định | Xóa khỏi `.env` — không cần thay thế |
+
+Nếu `.env` hoặc deployment scripts của bạn tham chiếu các biến này, hãy dọn dẹp để tránh nhầm lẫn.
 
 ## Checklist Breaking Changes
 

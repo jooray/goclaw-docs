@@ -79,7 +79,7 @@ Set `connection_mode: "websocket"` (default) or `"webhook"` in channel config.
 
 ## Zalo
 
-Zalo OA Bot is **DM only** (no group chats) with a 2000-character text limit. Runs in polling mode.
+Zalo OA Bot is **DM only** (no group chats) with a 2000-character text limit per message. GoClaw chunks longer responses automatically. Runs in polling mode.
 
 | Problem | Cause | Solution |
 |---------|-------|----------|

@@ -80,19 +80,44 @@ Với deployment public-facing hoặc multi-user agent chia sẻ, dùng `"block"
 
 Bảo vệ khỏi command execution nguy hiểm, truy cập file trái phép, và server-side request forgery.
 
-### Shell deny patterns
+### Shell deny groups
 
-7 danh mục lệnh luôn bị chặn dù exec approval config là gì:
+15 danh mục lệnh bị chặn theo mặc định. Tất cả group đều **bật (bị chặn)** sẵn. Có thể ghi đè per-agent qua `shell_deny_groups` trong agent config.
 
-| Danh mục | Ví dụ |
-|----------|-------|
-| Xóa file destructive | `rm -rf`, `del /f`, `rmdir /s` |
-| Thao tác disk destructive | `mkfs`, `dd if=`, `> /dev/sd*` |
-| System commands | `shutdown`, `reboot`, `poweroff` |
-| Fork bombs | `:(){ ... };:` |
-| Remote code execution | `curl \| sh`, `wget -O - \| sh` |
-| Reverse shells | `/dev/tcp/`, `nc -e` |
-| Eval injection | `eval $()`, `base64 -d \| sh` |
+| # | Group | Ví dụ |
+|---|-------|-------|
+| 1 | `destructive_ops` | `rm -rf /`, `dd if=`, `mkfs`, `reboot`, `shutdown` |
+| 2 | `data_exfiltration` | `curl \| sh`, truy cập localhost, DNS query |
+| 3 | `reverse_shell` | `nc -e`, `socat`, Python/Node socket |
+| 4 | `code_injection` | `eval $()`, `base64 -d \| sh` |
+| 5 | `privilege_escalation` | `sudo`, `su -`, `nsenter`, `mount`, `setcap` |
+| 6 | `dangerous_paths` | `chmod`/`chown` trên đường dẫn `/` |
+| 7 | `env_injection` | `LD_PRELOAD=`, `DYLD_INSERT_LIBRARIES=` |
+| 8 | `container_escape` | `docker.sock`, `/proc/sys/`, `/sys/kernel/` |
+| 9 | `crypto_mining` | `xmrig`, `cpuminer`, stratum URL |
+| 10 | `filter_bypass` | `sed /e`, `git --upload-pack=`, CVE mitigation |
+| 11 | `network_recon` | `nmap`, `ssh@`, `ngrok`, `chisel` |
+| 12 | `package_install` | `pip install`, `npm i`, `apk add`, `yarn` |
+| 13 | `persistence` | `crontab`, `.bashrc`, tee shell init |
+| 14 | `process_control` | `kill -9`, `killall`, `pkill` |
+| 15 | `env_dump` | `env`, `printenv`, biến `GOCLAW_*`, `/proc/*/environ` |
+
+Để cho phép một group cụ thể cho một agent, đặt thành `false` trong config của agent:
+
+```json
+{
+  "agents": {
+    "list": {
+      "devops-bot": {
+        "shell_deny_groups": {
+          "package_install": false,
+          "process_control": false
+        }
+      }
+    }
+  }
+}
+```
 
 ### Path traversal prevention
 
@@ -127,6 +152,10 @@ Với các tool cần credentials (ví dụ: `gh`, `aws`), GoClaw dùng direct p
 4. **Output scrubbing** — credentials đăng ký lúc runtime được scrub khỏi stdout/stderr
 
 Shell metacharacter (`;`, `|`, `&`, `$()`, backtick) được phát hiện và từ chối trước khi thực thi.
+
+### Giới hạn đầu ra shell
+
+Lệnh thực thi trên host có stdout và stderr giới hạn **1 MB** mỗi loại. Nếu lệnh vượt giới hạn này, đầu ra bị cắt bớt kèm cờ hiệu để ngăn ghi thêm. Thực thi trong sandbox dùng giới hạn container Docker thay thế.
 
 ### Exec approval
 
@@ -201,6 +230,18 @@ Nội dung fetch từ URL bên ngoài được bọc:
 Điều này báo hiệu cho LLM rằng nội dung không đáng tin và không được coi là instructions.
 
 Các content marker được bảo vệ chống Unicode homoglyph spoofing — GoClaw sanitize các ký tự trông giống nhau (ví dụ: chữ `а` Cyrillic vs chữ `a` Latin) để ngăn nội dung bên ngoài giả mạo boundary marker.
+
+### MCP content tagging
+
+Kết quả tool từ MCP server được bọc bằng cùng các content marker không đáng tin:
+
+```
+<<<EXTERNAL_UNTRUSTED_CONTENT>>> (MCP server: my-server, tool: search)
+[kết quả tool ở đây]
+<<<END_EXTERNAL_UNTRUSTED_CONTENT>>>
+```
+
+Header xác định server và tên tool. Footer cảnh báo LLM không làm theo hướng dẫn từ nội dung. Các thử nghiệm breakout marker được sanitize.
 
 ---
 
@@ -312,6 +353,63 @@ API key được truyền qua header `Authorization: Bearer {key}`, giống như
 
 ---
 
+## Bảo vệ Ghi đè File Memory
+
+Memory interceptor ngăn chặn mất dữ liệu âm thầm khi agent cố gắng ghi đè file memory hiện có bằng nội dung khác. Khi thực hiện ghi ở chế độ replace (không phải append) và mục tiêu đã có nội dung khác, giá trị cũ được capture và trả về cho caller để agent có thể được cảnh báo trước khi dữ liệu bị mất.
+
+**Cách hoạt động:**
+
+- `appendMode = true` — nội dung mới được gộp vào nội dung hiện có với dấu phân cách `---`. Không có cảnh báo ghi đè.
+- `appendMode = false` — nếu file đích đã chứa nội dung khác, `PreviousContent` được điền vào kết quả ghi. Caller quyết định có hiển thị cảnh báo cho agent không.
+
+Điều này đảm bảo agent không thể âm thầm ghi đè file memory bằng nội dung không liên quan trong quá trình ghi song song hoặc tuần tự. Thao tác ghi vẫn thực hiện theo kiểu atomic qua `PutDocument`, nhưng cảnh báo cung cấp một hook phát hiện xung đột.
+
+---
+
+## Hệ thống Config Permissions
+
+GoClaw cung cấp ba RPC method để kiểm soát người dùng nào có thể thay đổi cấu hình của agent (heartbeat interval, lịch cron, v.v.):
+
+| Method | Mô tả |
+|--------|-------|
+| `config.permissions.list` | Liệt kê tất cả quyền đã cấp cho agent, có thể lọc theo `configType` |
+| `config.permissions.grant` | Cấp quyền cho một user cụ thể để thay đổi config type |
+| `config.permissions.revoke` | Thu hồi quyền đã cấp trước đó |
+
+**Mô hình quyền — deny → allow fallback:**
+
+Mặc định, việc thay đổi cấu hình yêu cầu quyền admin. Việc cấp quyền cho `userId` với `scope` và `configType` cụ thể cho phép user đó thực hiện thay đổi cụ thể mà không cần toàn quyền admin.
+
+**Tham số Grant:**
+
+| Tham số | Bắt buộc | Mô tả |
+|---------|----------|-------|
+| `agentId` | có | UUID của agent |
+| `scope` | có | Định danh scope (ví dụ: `"heartbeat"`, `"cron"`) |
+| `configType` | có | Loại config được kiểm soát |
+| `userId` | có | User được cấp quyền |
+| `permission` | có | Cấp độ quyền (ví dụ: `"write"`) |
+| `grantedBy` | không | Tự động điền từ danh tính caller nếu bỏ trống |
+
+**Ví dụ — cho phép user thay đổi heartbeat config:**
+
+```json
+{
+  "method": "config.permissions.grant",
+  "params": {
+    "agentId": "3f2a1b4c-0000-0000-0000-000000000000",
+    "scope": "heartbeat",
+    "configType": "interval",
+    "userId": "user:telegram:123456789",
+    "permission": "write"
+  }
+}
+```
+
+Kiểm tra config permission được thực thi trong Telegram channel và các channel handler khác trước khi áp dụng cập nhật heartbeat hoặc agent configuration từ tin nhắn user.
+
+---
+
 ## Hardening Checklist
 
 Dùng trước khi expose GoClaw ra internet hoặc cho người dùng chia sẻ:
@@ -329,6 +427,8 @@ Dùng trước khi expose GoClaw ra internet hoặc cho người dùng chia sẻ
 - [ ] Đặt `agents.restrict_to_workspace: true` (đây là mặc định — không tắt)
 - [ ] Tạo scoped API key cho các integration thay vì chia sẻ gateway token
 - [ ] Cấu hình `tools.credentialed_exec` cho các CLI tool integration an toàn (gh, aws, v.v.)
+- [ ] Review shell deny groups — cả 15 group đều bật theo mặc định; chỉ nới lỏng cho agent cụ thể cần thiết
+- [ ] Xác minh sandbox mode không fallback sang thực thi host (fail-closed từ v0.x)
 
 ---
 
@@ -368,9 +468,9 @@ journalctl -u goclaw | grep 'security\.'
 
 ## Tiếp theo
 
-- [Exec Approval](#exec-approval) — human-in-the-loop cho shell commands
-- [Sandbox](#sandbox) — chi tiết cấu hình Docker sandbox
-- [Docker Compose](#deploy-docker-compose) — deploy với security settings qua compose overlays
-- [Database Setup](#deploy-database) — PostgreSQL TLS và encrypted secret storage
+- [Exec Approval](../advanced/exec-approval.md) — human-in-the-loop cho shell commands
+- [Sandbox](../advanced/sandbox.md) — chi tiết cấu hình Docker sandbox
+- [Docker Compose](./docker-compose.md) — deploy với security settings qua compose overlays
+- [Database Setup](./database-setup.md) — PostgreSQL TLS và encrypted secret storage
 
-<!-- goclaw-source: 120fc2d | cập nhật: 2026-03-18 -->
+<!-- goclaw-source: 941a965 | updated: 2026-03-19 -->

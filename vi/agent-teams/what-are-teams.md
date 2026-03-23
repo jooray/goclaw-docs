@@ -7,16 +7,15 @@ Agent team cho phép nhiều agent cùng cộng tác trên các task chung. Mộ
 ## Mô hình Team
 
 Một team bao gồm:
-- **Lead Agent**: Điều phối công việc, tạo và giao task qua `team_tasks`, tổng hợp kết quả
-- **Member Agents**: Nhận task được dispatch, thực thi độc lập, hoàn thành với kết quả
-- **Reviewer Agents** (tùy chọn): Đánh giá kết quả task; phản hồi bằng `APPROVED` hoặc `REJECTED: <phản hồi>`
+- **Lead Agent**: Điều phối công việc, tạo và giao task qua `team_tasks`, delegate cho member, tổng hợp kết quả
+- **Member Agents**: Nhận task được dispatch, thực thi độc lập, hoàn thành với kết quả, có thể gửi cập nhật tiến độ qua mailbox
 - **Shared Task Board**: Theo dõi công việc, phụ thuộc, mức độ ưu tiên, trạng thái
-- **Team Mailbox**: Tin nhắn trực tiếp giữa các member qua `team_message`; lead không có tool mailbox
+- **Team Mailbox**: Tin nhắn trực tiếp giữa tất cả thành viên qua `team_message`
 
 ```mermaid
 flowchart TD
     subgraph Team["Agent Team"]
-        LEAD["Lead Agent<br/>Điều phối công việc, giao task,<br/>tổng hợp kết quả"]
+        LEAD["Lead Agent<br/>Điều phối công việc, tạo task,<br/>delegate cho member, tổng hợp kết quả"]
         M1["Member A<br/>Nhận và thực thi task"]
         M2["Member B<br/>Nhận và thực thi task"]
         M3["Member C<br/>Nhận và thực thi task"]
@@ -28,31 +27,46 @@ flowchart TD
     end
 
     USER["Người dùng"] -->|tin nhắn| LEAD
-    LEAD -->|team_tasks tạo+giao task| M1 & M2 & M3
-    M1 & M2 & M3 -->|hoàn thành với kết quả| LEAD
+    LEAD -->|tạo task + delegate| M1 & M2 & M3
+    M1 & M2 & M3 -->|kết quả tự động thông báo| LEAD
     LEAD -->|phản hồi tổng hợp| USER
 
     LEAD & M1 & M2 & M3 <--> TB
-    M1 & M2 & M3 <--> MB
+    LEAD & M1 & M2 & M3 <--> MB
 ```
 
 ## Nguyên tắc Thiết kế Cốt lõi
 
-**TEAM.md cho tất cả**: Mọi agent trong team — lead và member — đều nhận `TEAM.md` được inject vào system prompt. Nội dung có nhận thức về vai trò: lead nhận hướng dẫn điều phối đầy đủ (các mẫu `team_tasks`, chuỗi phụ thuộc, nhắc nhở follow-up); member nhận hướng dẫn thực thi (báo cáo tiến độ qua `team_tasks`).
+**TEAM.md chỉ cho lead**: Chỉ lead nhận `TEAM.md` với hướng dẫn điều phối đầy đủ — quy trình bắt buộc, các mẫu delegation, nhắc nhở follow-up. Member khám phá context theo nhu cầu qua các tool; không lãng phí token cho các agent đang rảnh.
 
-**Tự động hoàn thành**: Khi member hoàn thành một task, các task phụ thuộc bị blocked tự động chuyển sang pending và được dispatch. Không cần ghi chép thủ công.
+**Theo dõi task bắt buộc**: Mọi delegation từ lead phải được liên kết với một task trên board. Hệ thống thực thi điều này — delegation không có `team_task_id` sẽ bị từ chối, kèm theo danh sách task đang chờ để giúp lead tự sửa lỗi.
 
-**Xử lý song song**: Nhiều member làm việc đồng thời trên các task được giao độc lập; mỗi task hoàn thành riêng lẻ và lead được thông báo theo từng task.
+**Tự động hoàn thành**: Khi delegation kết thúc, task được liên kết sẽ tự động được đánh dấu là hoàn thành. Các file được tạo trong quá trình thực thi tự động được liên kết với task. Không cần ghi chép thủ công.
 
-**Lead không thể dùng mailbox**: Tool `team_message` bị xóa khỏi danh sách tool của lead theo policy. Lead điều phối qua `team_tasks`; member dùng `team_message` để gửi tin nhắn trực tiếp cho nhau.
+**Blocker escalation**: Member có thể báo hiệu bị blocked bằng cách đăng blocker comment trên task. Điều này tự động fail task và gửi thông báo escalation đến lead kèm tên member bị blocked, tiêu đề task, lý do blocker, và hướng dẫn retry.
+
+**Xử lý song song**: Khi nhiều member làm việc đồng thời, kết quả được thu thập và gửi đến lead trong một thông báo kết hợp duy nhất.
+
+**Phạm vi của member**: Member không có quyền spawn hay delegate. Họ làm việc trong cấu trúc team — thực thi task, báo cáo tiến độ, và giao tiếp qua mailbox.
+
+## Team Workspace
+
+Mỗi team có một workspace chung để lưu trữ file được tạo trong quá trình thực thi task. Phạm vi workspace có thể cấu hình:
+
+| Chế độ | Thư mục | Trường hợp dùng |
+|--------|---------|-----------------|
+| **Isolated** (mặc định) | `{dataDir}/teams/{teamID}/{chatID}/` | Cô lập theo cuộc hội thoại |
+| **Shared** | `{dataDir}/teams/{teamID}/` | Tất cả member dùng chung một thư mục |
+
+Cấu hình qua `workspace_scope: "shared"` trong team settings. File được ghi trong quá trình thực thi task tự động lưu vào workspace và liên kết với task đang hoạt động.
 
 ## Ví dụ Thực tế
 
 **Tình huống**: Người dùng yêu cầu lead phân tích một bài nghiên cứu và viết tóm tắt.
 
 1. Lead nhận yêu cầu
-2. Lead gọi `team_tasks(action="create", subject="Trích xuất điểm chính từ bài nghiên cứu", assignee="researcher")` — hệ thống dispatch đến researcher
-3. Researcher nhận task, làm việc độc lập, gọi `team_tasks(action="complete", result="<phát hiện>")` — lead được thông báo
+2. Lead gọi `team_tasks(action="create", subject="Trích xuất điểm chính từ bài nghiên cứu", assignee="researcher")` — hệ thống dispatch đến researcher với `team_task_id` được liên kết
+3. Researcher nhận task, làm việc độc lập, gọi `team_tasks(action="complete", result="<phát hiện>")` — task liên kết tự động hoàn thành, lead được thông báo
 4. Lead gọi `team_tasks(action="create", subject="Viết tóm tắt", assignee="writer", description="Dùng phát hiện của researcher: <phát hiện>", blocked_by=["<task-id-researcher>"])`
 5. Task của writer tự động unblock khi researcher xong, writer hoàn thành với kết quả
 6. Lead tổng hợp và gửi phản hồi cuối cùng cho người dùng
@@ -63,9 +77,9 @@ flowchart TD
 |--------|-----------|-------------------|-----------|
 | **Điều phối** | Lead điều phối qua task board | Parent chờ kết quả | Ngang hàng trực tiếp |
 | **Theo dõi Task** | Task board chung, phụ thuộc, ưu tiên | Không theo dõi | Không theo dõi |
-| **Nhắn tin** | Member dùng mailbox; lead dùng team_tasks | Chỉ với parent | Chỉ với parent |
+| **Nhắn tin** | Tất cả member dùng mailbox | Chỉ với parent | Chỉ với parent |
 | **Khả năng mở rộng** | Thiết kế cho 3–10 member | Parent-child đơn giản | Liên kết 1-1 |
-| **Context TEAM.md** | Tất cả member nhận TEAM.md theo vai trò | Không áp dụng | Không áp dụng |
+| **Context TEAM.md** | Lead nhận hướng dẫn đầy đủ; member nhận hướng dẫn thực thi | Không áp dụng | Không áp dụng |
 | **Trường hợp dùng** | Nghiên cứu song song, review nội dung, phân tích | Delegate nhanh & chờ | Chuyển giao hội thoại |
 
 **Dùng Team khi**:
@@ -83,4 +97,4 @@ flowchart TD
 - Hội thoại cần chuyển giao giữa các agent
 - Không cần task board hay điều phối
 
-<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-18 -->
+<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-23 -->

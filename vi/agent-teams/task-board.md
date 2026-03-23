@@ -32,29 +32,30 @@ Tất cả thành viên team truy cập task board qua tool `team_tasks`. Các h
 |--------|-----------------|-------------|
 | `list` | `action` | Hiển thị task đang hoạt động (phân trang: 30 task mỗi trang) |
 | `get` | `action`, `task_id` | Lấy chi tiết đầy đủ của task kèm comment, sự kiện, tệp đính kèm (kết quả: giới hạn 8.000 ký tự) |
-| `create` | `action`, `subject` | Tạo task mới (chỉ lead); tùy chọn: `description`, `priority`, `blocked_by`, `require_approval` |
+| `create` | `action`, `subject`, `assignee` | Tạo task mới (chỉ lead); `assignee` là **bắt buộc**; tùy chọn: `description`, `priority`, `blocked_by`, `require_approval` |
 | `claim` | `action`, `task_id` | Nhận task đang chờ theo kiểu atomic |
 | `complete` | `action`, `task_id`, `result` | Đánh dấu task hoàn thành kèm tóm tắt kết quả |
 | `cancel` | `action`, `task_id` | Hủy task (chỉ lead); tùy chọn: `text` (lý do) |
-| `search` | `action`, `query` | Tìm kiếm full-text trên subject + description |
-
-> **Hành động Team v2** (yêu cầu phiên bản team 2):
-
-| Hành động | Tham số bắt buộc | Mô tả |
-|--------|-----------------|-------------|
-| `review` | `action`, `task_id` | Gửi task đang xử lý để review (chỉ owner) |
-| `approve` | `action`, `task_id` | Phê duyệt task đang review (chỉ lead) |
-| `reject` | `action`, `task_id` | Từ chối task đang review (chỉ lead); tùy chọn: `text` (lý do) |
-| `comment` | `action`, `task_id`, `text` | Thêm bình luận vào task |
+| `assign` | `action`, `task_id`, `assignee` | Admin gán task đang chờ cho một agent |
+| `search` | `action`, `query` | Tìm kiếm full-text trên subject + description (kiểm tra trước khi tạo để tránh trùng lặp) |
+| `review` | `action`, `task_id` | Gửi task đang xử lý để review; chuyển sang `in_review` (chỉ owner) |
+| `approve` | `action`, `task_id` | Phê duyệt task đang review → `completed` (chỉ lead/admin) |
+| `reject` | `action`, `task_id` | Từ chối task đang review → `cancelled` kèm lý do gửi cho lead (chỉ lead/admin); tùy chọn: `text` |
+| `comment` | `action`, `task_id`, `text` | Thêm bình luận; dùng `type="blocker"` để báo blocker (kích hoạt auto-fail + escalation cho lead) |
 | `progress` | `action`, `task_id`, `percent` | Cập nhật tiến độ 0-100 (chỉ owner); tùy chọn: `text` (mô tả bước) |
 | `update` | `action`, `task_id` | Cập nhật subject hoặc description của task (chỉ lead) |
 | `attach` | `action`, `task_id`, `file_id` | Đính kèm file workspace vào task |
-| `await_reply` | `action`, `task_id`, `text` | Đặt nhắc nhở follow-up (chỉ owner) |
-| `clear_followup` | `action`, `task_id` | Xóa nhắc nhở follow-up (owner hoặc lead) |
+| `ask_user` | `action`, `task_id`, `text` | Đặt nhắc nhở follow-up định kỳ gửi cho user (chỉ owner) |
+| `clear_followup` | `action`, `task_id` | Xóa nhắc nhở ask_user (owner hoặc lead) |
+| `retry` | `action`, `task_id` | Tái phân công task `stale` hoặc `failed` về `pending` (admin/lead) |
 
 ## Tạo Task
 
 **Lead tạo task** cho member thực hiện:
+
+> **Lưu ý**: Trường `assignee` là **bắt buộc** khi tạo task. Bỏ qua sẽ trả lỗi: `"assignee is required — specify which team member should handle this task"`.
+
+> **Lưu ý**: Agent phải gọi `search` trước `create` để tránh tạo task trùng lặp. Tạo mà không kiểm tra trước sẽ trả lỗi yêu cầu tìm kiếm trước.
 
 ```json
 {
@@ -62,6 +63,7 @@ Tất cả thành viên team truy cập task board qua tool `team_tasks`. Các h
   "subject": "Trích xuất điểm chính từ bài nghiên cứu",
   "description": "Đọc PDF và tóm tắt các phát hiện chính dưới dạng bullet point",
   "priority": 10,
+  "assignee": "researcher",
   "blocked_by": []
 }
 ```
@@ -144,6 +146,46 @@ flowchart LR
     B_DONE --> UNBLOCK
     UNBLOCK -->|tất cả xong| C_READY["Task C: pending<br/>(sẵn sàng nhận)"]
 ```
+
+## Blocker Escalation
+
+Khi member bị chặn, họ đăng comment blocker:
+
+```json
+{
+  "action": "comment",
+  "task_id": "550e8400-...",
+  "text": "Không tìm thấy tài liệu API",
+  "type": "blocker"
+}
+```
+
+Những gì xảy ra tự động:
+1. Comment được lưu với `comment_type='blocker'`
+2. Task **tự động thất bại** (`in_progress` → `failed`)
+3. Session của member bị hủy; UI dashboard cập nhật real-time
+4. **Lead nhận tin nhắn escalation** từ `system:escalation` kèm tên member bị chặn, số task, lý do blocker, và hướng dẫn `retry`
+
+Lead có thể xử lý vấn đề rồi tái phân công:
+
+```json
+{
+  "action": "retry",
+  "task_id": "550e8400-..."
+}
+```
+
+Blocker escalation được bật theo mặc định. Tắt per-team qua settings: `{"blocker_escalation": {"enabled": false}}`.
+
+## Review Workflow
+
+Với task yêu cầu phê duyệt của người dùng, đặt `require_approval: true` khi tạo:
+
+1. **Member gửi review**: `action="review"` → task chuyển sang `in_review`
+2. **Người dùng phê duyệt** (dashboard): `action="approve"` → task chuyển sang `completed`
+3. **Người dùng từ chối** (dashboard): `action="reject"` → task chuyển sang `cancelled`; lead nhận thông báo
+
+Không có `require_approval`, task chuyển thẳng sang `completed` sau khi gọi `complete` (không qua giai đoạn in_review).
 
 ## Liệt kê & Tìm kiếm
 
@@ -264,9 +306,11 @@ Lưu ý: lý do hủy được truyền qua tham số `text` (không phải `rea
 ## Thực hành Tốt nhất
 
 1. **Tạo task trước**: Luôn tạo task trước khi delegate công việc (chỉ lead)
-2. **Dùng priority**: Đặt priority theo mức độ khẩn cấp (100 = khẩn cấp, 10 = cao, 0 = bình thường)
-3. **Thêm phụ thuộc**: Liên kết các task liên quan với `blocked_by` để đảm bảo thứ tự
-4. **Thêm context**: Viết mô tả rõ ràng để member biết cần làm gì
-5. **Kiểm tra trước khi nhận**: Dùng `list` để xem có gì trước khi claim
+2. **Luôn đặt assignee**: Trường `assignee` là bắt buộc — chỉ định thành viên khi tạo task
+3. **Tìm kiếm trước khi tạo**: Dùng `action=search` để kiểm tra task tương tự trước khi tạo, tránh trùng lặp
+4. **Dùng priority**: Đặt priority theo mức độ khẩn cấp (100 = khẩn cấp, 10 = cao, 0 = bình thường)
+5. **Thêm phụ thuộc**: Liên kết các task liên quan với `blocked_by` để đảm bảo thứ tự
+6. **Thêm context**: Viết mô tả rõ ràng để member biết cần làm gì
+7. **Dùng blocker comment**: Nếu bị chặn, đăng comment `type="blocker"` — lead sẽ được thông báo tự động
 
-<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-19 -->
+<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-23 -->

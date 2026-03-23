@@ -1,31 +1,33 @@
 # Tools Overview
 
-> The 33+ built-in tools agents can use, organized by category.
+> The 50+ built-in tools agents can use, organized by category.
 
 ## Overview
 
-Tools are how agents interact with the world beyond generating text. An agent can search the web, read files, run code, query memory, delegate to other agents, and more. GoClaw includes 33+ built-in tools (extensible via MCP and custom tools per agent) across 13 categories.
+Tools are how agents interact with the world beyond generating text. An agent can search the web, read files, run code, query memory, collaborate via agent teams, and more. GoClaw includes 50+ built-in tools (extensible via MCP and custom tools per agent) across 14 categories.
 
 ## Tool Categories
 
 | Category | Tools | What They Do |
 |----------|-------|-------------|
-| **Filesystem** | read_file, write_file, edit, list_files | Read, write, and edit files in the agent workspace |
-| **Runtime** | exec | Run shell commands |
-| **Web** | web_search, web_fetch | Search the web (Brave/DuckDuckGo) and fetch pages |
-| **Memory** | memory_search, memory_get, knowledge_graph_search | Query long-term memory (hybrid vector + FTS search) and knowledge graph |
-| **Sessions** | sessions_list, sessions_history, sessions_send, session_status | Manage conversation sessions |
-| **Delegation** | handoff | Delegate tasks to other agents |
-| **Subagents** | spawn | Spawn subtasks as subagents |
-| **Teams** | team_tasks, team_message | Collaborate with agent teams via task boards |
-| **Heartbeat** | heartbeat | Configure and manage periodic proactive check-ins |
-| **UI** | browser | Browse websites |
-| **Automation** | cron | Schedule recurring jobs |
-| **Messaging** | message, create_forum_topic, list_group_members | Send messages; create Telegram forum topics; list Lark/Feishu group members |
-| **Media** | read_image, create_image, read_document, read_audio, read_video, create_video, create_audio, tts | Read and generate images, documents, audio, video, and text-to-speech |
-| **Skills** | use_skill, skill_search, publish_skill | Discover, invoke, and publish skills |
+| **Filesystem** (`group:fs`) | read_file, write_file, edit, list_files, search, glob | Read, write, edit, and search files in the agent workspace |
+| **Runtime** (`group:runtime`) | exec, credentialed_exec | Run shell commands; execute CLI tools with injected credentials |
+| **Web** (`group:web`) | web_search, web_fetch | Search the web (Brave/DuckDuckGo) and fetch pages |
+| **Memory** (`group:memory`) | memory_search, memory_get | Query long-term memory (hybrid vector + FTS search) |
+| **Knowledge** (`group:knowledge`) | knowledge_graph_search, skill_search | Search knowledge graph entities and relationships; discover skills |
+| **Sessions** (`group:sessions`) | sessions_list, sessions_history, sessions_send, session_status, spawn | Manage conversation sessions; spawn subagents |
+| **Teams** (`group:teams`) | team_tasks, team_message | Collaborate with agent teams via shared task board and mailbox |
+| **Automation** (`group:automation`) | cron, datetime | Schedule recurring jobs; get current date/time |
+| **Messaging** (`group:messaging`) | message, create_forum_topic | Send messages; create Telegram forum topics |
+| **Media Generation** (`group:media_gen`) | create_image, create_audio, create_video, tts | Generate images, audio, video, and text-to-speech |
+| **Media Reading** (`group:media_read`) | read_image, read_audio, read_document, read_video | Analyze images, transcribe audio, extract documents, analyze video |
+| **Skills** (`group:skills`) | use_skill, publish_skill | Invoke and publish skills |
+| **Workspace** | workspace_dir | Resolve workspace directory for team/user context |
+| **AI** | openai_compat_call | Call OpenAI-compatible endpoints with custom request formats |
 
-> Additional tools like `mcp_tool_search` and channel-specific tools are registered dynamically.
+> Additional tools like `mcp_tool_search` and channel-specific tools are registered dynamically. Tool groups can be referenced with `group:` prefix in allow/deny lists (e.g., `group:fs`).
+
+> **Delegation note**: The `delegate` tool has been removed. Delegation is now handled exclusively via agent teams: leads create tasks on the shared board (`team_tasks`) and delegate to member agents via `spawn`. See [Agent Teams](#agent-teams) for the current model.
 
 ## Tool Execution Flow
 
@@ -52,10 +54,10 @@ Profiles control which tools an agent can access:
 
 | Profile | Available Tools |
 |---------|----------------|
-| `full` | All tools |
-| `coding` | Filesystem, runtime, sessions, memory, web, images, skills |
-| `messaging` | Messaging, web, sessions, images, skills |
-| `minimal` | session_status only |
+| `full` | All registered tools (no restriction) |
+| `coding` | `group:fs`, `group:runtime`, `group:sessions`, `group:memory`, `group:web`, `group:knowledge`, `group:media_gen`, `group:media_read`, `group:skills` |
+| `messaging` | `group:messaging`, `group:web`, `group:sessions`, `group:media_read`, `skill_search` |
+| `minimal` | `session_status` only |
 
 Set the profile in agent config:
 
@@ -102,7 +104,7 @@ Beyond profiles, a 7-step policy engine gives fine-grained control:
 6. Per-agent per-provider allow
 7. Group-level allow
 
-After allow lists, **deny lists** remove tools, then **alsoAllow** adds them back (union).
+After allow lists, **deny lists** remove tools, then **alsoAllow** adds them back (union). Tool groups (`group:fs`, `group:runtime`, etc.) can be used in any allow/deny list.
 
 ### Example: Restrict an Agent
 
@@ -133,6 +135,12 @@ When an agent reads/writes context files (SOUL.md, IDENTITY.md, AGENTS.md, USER.
 Writes to `MEMORY.md`, `memory.md`, or `memory/*` are routed to the `memory_documents` table, automatically chunked and embedded for search.
 
 ## Shell Safety
+
+### `credentialed_exec` — Secure CLI Credential Injection
+
+The `credentialed_exec` tool runs CLI tools (gh, gcloud, aws, kubectl, terraform) with credentials auto-injected as environment variables directly into the child process — no shell, no credential leakage. Security layers: path verification (blocks `./gh` spoofing), shell operator blocking (`;`, `|`, `&&`), per-binary deny patterns (e.g., block `auth\s+`), and output scrubbing.
+
+### `exec` — Shell Safety
 
 The `exec` tool enforces 15 deny groups — all enabled by default:
 
@@ -202,4 +210,4 @@ See [Custom Tools](#custom-tools) and [MCP Integration](#mcp-integration) for de
 - [Multi-Tenancy](#multi-tenancy) — Per-user tool access and isolation
 - [Custom Tools](#custom-tools) — Build your own tools
 
-<!-- goclaw-source: 941a965 | updated: 2026-03-19 -->
+<!-- goclaw-source: 941a965 | updated: 2026-03-23 -->

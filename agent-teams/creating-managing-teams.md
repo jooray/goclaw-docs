@@ -1,6 +1,6 @@
 # Creating & Managing Teams
 
-Create teams via API, Dashboard, or CLI. The system automatically establishes delegation links between the lead and all members, injects `TEAM.md` into their system prompts, and wires up task board access.
+Create teams via API, Dashboard, or CLI. The system automatically establishes delegation links between the lead and all members, injects `TEAM.md` into the lead's system prompt, and wires up task board access for all members.
 
 ## Quick Start
 
@@ -35,12 +35,12 @@ When you create a team, the system:
 1. **Validates** lead and member agents exist
 2. **Creates team record** with `status=active`
 3. **Adds lead as a member** with `role=lead`
-4. **Adds each member** with `role=member` (or `role=reviewer` if specified)
+4. **Adds each member** with `role=member`
 5. **Auto-creates delegation links** from lead → each member:
    - Direction: `outbound` (lead can delegate to members)
    - Max concurrent delegations per link: `3`
    - Marked with `team_id` (system knows these are team-managed)
-6. **Injects TEAM.md** into all members' system prompts
+6. **Injects TEAM.md** into the lead's system prompt with full orchestration instructions
 7. **Enables task board** for all team members
 
 ## Team Lifecycle
@@ -48,7 +48,7 @@ When you create a team, the system:
 ```mermaid
 flowchart TD
     CREATE["Admin creates team<br/>(name, lead, members)"] --> LINK["Auto-create delegation links<br/>Lead → each member"]
-    LINK --> INJECT["TEAM.md auto-injected<br/>into all members' system prompts"]
+    LINK --> INJECT["TEAM.md auto-injected<br/>into lead's system prompt"]
     INJECT --> READY["Team ready for use"]
 
     READY --> MANAGE["Admin manages team"]
@@ -59,7 +59,7 @@ flowchart TD
 
 ## Managing Team Membership
 
-**Add a member** (role is `member` by default; can also be `reviewer`):
+**Add a member** (role is `member` by default):
 
 ```bash
 ./goclaw team add-member \
@@ -90,12 +90,26 @@ flowchart TD
 # Agent Key        Role        Display Name
 # researcher_agent lead        Research Expert
 # analyst_agent    member      Data Analyst
-# writer_agent     reviewer    Content Reviewer
+# writer_agent     member      Content Writer
 ```
+
+## Lead vs Member Roles
+
+| Capability | Lead | Member |
+|-----------|------|--------|
+| Receives full TEAM.md (orchestration instructions) | Yes | No (discovers context via tools) |
+| Creates tasks on board | Yes | No |
+| Delegates tasks to members | Yes | No |
+| Executes delegated tasks | No | Yes |
+| Reports progress via task board | No | Yes |
+| Sends/receives mailbox messages | Yes | Yes |
+| Spawn / delegate access | Yes | No |
+
+Members work within the team structure. They do not have spawn or delegate capabilities — their role is to execute assigned tasks and report results.
 
 ## Team Settings & Access Control
 
-Teams support fine-grained access control via settings JSON:
+Teams support fine-grained access control and behavior configuration via settings JSON:
 
 ```json
 {
@@ -106,25 +120,41 @@ Teams support fine-grained access control via settings JSON:
   "progress_notifications": true,
   "followup_interval_minutes": 30,
   "followup_max_reminders": 3,
-  "escalation_mode": "",
+  "escalation_mode": "notify_lead",
   "escalation_actions": [],
-  "workspace_scope": "",
-  "workspace_quota_mb": 500
+  "workspace_scope": "isolated",
+  "workspace_quota_mb": 500,
+  "blocker_escalation": {
+    "enabled": true
+  }
 }
 ```
 
-**Fields**:
-- `allow_user_ids`: Only these users can trigger team work (empty = open)
-- `deny_user_ids`: Block these users (deny takes priority)
-- `allow_channels`: Only these channels trigger team work (empty = open)
-- `deny_channels`: Block these channels
-- `progress_notifications`: Send periodic updates during async delegations
+**Access control fields**:
+- `allow_user_ids`: Only these users can trigger team work (empty = open access)
+- `deny_user_ids`: Block these users (deny takes priority over allow)
+- `allow_channels`: Only messages from these channels trigger team work (empty = open)
+- `deny_channels`: Block messages from these channels
+
+System channels (`teammate`, `system`) always pass access checks regardless of settings.
+
+**Follow-up & escalation fields**:
 - `followup_interval_minutes`: Minutes between auto follow-up reminders on in-progress tasks
 - `followup_max_reminders`: Maximum number of follow-up reminders per task
-- `escalation_mode`: Escalation behavior when tasks stall (optional)
-- `escalation_actions`: List of escalation actions to take (optional)
-- `workspace_scope`: Scope restriction for shared workspace files (optional)
-- `workspace_quota_mb`: Disk quota for team workspace in megabytes (optional)
+- `escalation_mode`: How to handle stale tasks — `"notify_lead"` (send notification) or `"fail_task"` (auto-fail the task)
+- `escalation_actions`: Additional actions to take on escalation
+
+**Blocker escalation**:
+- `blocker_escalation.enabled`: Whether blocker comments auto-fail tasks and escalate to lead (default: `true`)
+
+When `blocker_escalation` is enabled (default), if a member posts a blocker comment on a task, the task is auto-failed and the lead receives an escalation message with the blocker reason and retry instructions. Set `enabled: false` to save blocker comments without triggering auto-fail.
+
+**Workspace fields**:
+- `workspace_scope`: `"isolated"` (default, per-conversation folders) or `"shared"` (all members share one folder)
+- `workspace_quota_mb`: Disk quota for team workspace in megabytes
+
+**Other fields**:
+- `progress_notifications`: Send periodic updates during async delegations
 
 **Set team settings**:
 
@@ -133,11 +163,11 @@ Teams support fine-grained access control via settings JSON:
   --team-id 550e8400-e29b-41d4-a716-446655440000 \
   --settings '{
     "allow_user_ids": ["user_123"],
-    "allow_channels": ["telegram"]
+    "allow_channels": ["telegram"],
+    "blocker_escalation": {"enabled": true},
+    "escalation_mode": "notify_lead"
   }'
 ```
-
-System channels (`teammate`, `system`) always pass access checks.
 
 ## Team Status
 
@@ -163,7 +193,7 @@ When a team is active, GoClaw injects a `## Team Members` section into the lead 
 ```
 ## Team Members
 - agent_key: analyst_agent | display_name: Data Analyst | role: member | expertise: Data analysis and visualization...
-- agent_key: writer_agent | display_name: Content Writer | role: reviewer | expertise: Technical writing...
+- agent_key: writer_agent | display_name: Content Writer | role: member | expertise: Technical writing...
 ```
 
 This lets the lead assign tasks to the correct agent by key without guessing. The section updates automatically when members are added or removed.
@@ -174,13 +204,14 @@ When a task is created from a conversation that includes media files (images, do
 
 ## TEAM.md Injection
 
-When a team is created or modified, `TEAM.md` is generated and injected into members' system prompts. It contains:
+`TEAM.md` is a virtual file generated dynamically at agent resolution time — not stored on disk. It is injected into the system prompt wrapped in `<system_context>` tags.
 
 **Lead's TEAM.md** includes:
 - Team name and description
 - Teammate list with roles and expertise
-- **Mandatory workflow**: create task first, then delegate with task ID
+- **Mandatory workflow**: create task first, then delegate with task ID — delegations without a valid `team_task_id` are rejected
 - **Orchestration patterns**: sequential, iterative, parallel, mixed
+- Communication guidelines
 
 **Members' TEAM.md** includes:
 - Team name and teammate list
@@ -188,12 +219,12 @@ When a team is created or modified, `TEAM.md` is generated and injected into mem
 - How to report progress via `team_tasks(action="progress", percent=50, text="...")`
 - Task board actions available: `claim`, `complete`, `list`, `get`, `search`, `progress`, `comment`, `attach`, `retry` (no `create`, `cancel`, `approve`, `reject`)
 
-The context is wrapped in `<system_context>` tags and refreshed automatically when team configuration changes.
+The context refreshes automatically when team configuration changes (members added/removed, settings updated).
 
 ## Next Steps
 
-- [Task Board](#teams-task-board) - Create and manage tasks
-- [Team Messaging](#teams-messaging) - Communicate between members
-- [Delegation & Handoff](#teams-delegation) - Orchestrate work
+- [Task Board](./task-board.md) - Create and manage tasks
+- [Team Messaging](./team-messaging.md) - Communicate between members
+- [Delegation & Handoff](./delegation-and-handoff.md) - Orchestrate work
 
-<!-- goclaw-source: 941a965 | updated: 2026-03-19 -->
+<!-- goclaw-source: 57754a5 | updated: 2026-03-23 -->

@@ -39,6 +39,8 @@ Use `{baseDir}` to reference files alongside this SKILL.md:
 
 The `{baseDir}` placeholder is replaced at load time with the absolute path to the skill directory, so you can reference companion files.
 
+> **Multiline blocks**: YAML frontmatter supports multiline strings for `description` using the `|` block scalar. This is useful for longer skill descriptions without hitting YAML line limits.
+
 **Frontmatter fields:**
 
 | Field | Description |
@@ -55,10 +57,10 @@ GoClaw loads skills from five locations in priority order. A skill in a higher-p
 | 1 (highest) | `<workspace>/skills/` | `workspace` |
 | 2 | `<workspace>/.agents/skills/` | `agents-project` |
 | 3 | `~/.agents/skills/` | `agents-personal` |
-| 4 | `~/.goclaw/skills/` | `global` |
+| 4 | `~/.goclaw/skills/` (managed DB) | `managed-skills` |
 | 5 (lowest) | Built-in (bundled with binary) | `builtin` |
 
-Skills uploaded via the Dashboard are stored in `~/.goclaw/skills-store/` (managed directory, backed by PostgreSQL) and act at the `global` level for slots not taken by higher-priority sources.
+Skills uploaded via the Dashboard are stored in `~/.goclaw/skills-store/` (managed directory, backed by PostgreSQL) and act at the `managed-skills` level. The `file_path` DB column is used to resolve the versioned directory for each skill on disk.
 
 **Precedence example:** if you have a `code-reviewer` skill in both `~/.goclaw/skills/` and `<workspace>/skills/`, the workspace version wins.
 
@@ -98,6 +100,71 @@ Uploaded skills are stored in a versioned subdirectory structure under the manag
 Metadata (name, description, visibility, grants) lives in PostgreSQL; file content lives on disk. GoClaw always serves the highest-numbered version. Old versions are kept for rollback.
 
 Skills uploaded via the Dashboard start with **internal** visibility — immediately accessible to any agent or user you grant access to.
+
+## Runtime Environment
+
+Skills that use Python or Node.js run inside a Docker container with pre-installed packages.
+
+### Pre-installed Packages
+
+| Category | Packages |
+|---|---|
+| Python | `pypdf`, `openpyxl`, `pandas`, `python-pptx`, `markitdown` |
+| Node.js (global npm) | `docx`, `pptxgenjs` |
+| System tools | `python3`, `nodejs`, `pandoc`, `gh` (GitHub CLI) |
+
+### Writable Runtime Directories
+
+The container root filesystem is read-only. Agents install additional packages to writable volume-backed directories:
+
+```
+/app/data/.runtime/
+├── pip/         ← PIP_TARGET (Python packages)
+├── pip-cache/   ← PIP_CACHE_DIR
+└── npm-global/  ← NPM_CONFIG_PREFIX (Node.js packages)
+```
+
+Packages installed at runtime persist across tool calls within the same container lifecycle.
+
+### Security Constraints
+
+| Constraint | Detail |
+|---|---|
+| `read_only: true` | Container rootfs is immutable; only volumes are writable |
+| `/tmp` is `noexec` | Cannot execute binaries from tmpfs |
+| `cap_drop: ALL` | No privilege escalation |
+| Exec deny patterns | Blocks `curl \| sh`, reverse shells, crypto miners |
+| `.goclaw/` denied | Exec tool blocks access to `.goclaw/` except `.goclaw/skills-store/` |
+
+### What Agents Can/Cannot Do
+
+Agents **can**: run Python/Node scripts, install packages via `pip3 install` or `npm install -g`, access files in `/app/workspace/` including `.media/`.
+
+Agents **cannot**: write to system paths, execute binaries from `/tmp`, run blocked shell patterns (network tools, reverse shells).
+
+## Bundled Skills
+
+GoClaw ships five core skills bundled inside the Docker image at `/app/bundled-skills/`. They are lowest priority — user-uploaded skills override them by slug.
+
+| Skill | Purpose |
+|---|---|
+| `pdf` | Read, create, merge, split PDFs |
+| `xlsx` | Read, create, edit spreadsheets |
+| `docx` | Read, create, edit Word documents |
+| `pptx` | Read, create, edit presentations |
+| `skill-creator` | Create new skills |
+
+Bundled skills are seeded into PostgreSQL on every gateway startup (hash-tracked, no re-import if unchanged). They are tagged `is_system = true` and `visibility = 'public'`.
+
+### Dependency System
+
+GoClaw auto-detects and installs missing skill dependencies:
+
+1. **Scanner** — statically analyzes `scripts/` subdirectory for Python (`import X`, `from X import`) and Node.js (`require('X')`, `import from 'X'`) imports
+2. **Checker** — verifies each import resolves at runtime via subprocess (`python3 -c "import X"` / `node -e "require.resolve('X')"`)
+3. **Installer** — installs by prefix: `pip:name` → `pip3 install`, `npm:name` → `npm install -g`, `apk:name` → `doas apk add`
+
+Dep checks run in a background goroutine at startup (non-blocking). Skills with missing deps are archived automatically; they are re-activated after deps are installed. You can also trigger a rescan via **Skills → Rescan Deps** in the Dashboard or `POST /v1/skills/rescan-deps`.
 
 ## Built-in Skill Tools
 
@@ -236,9 +303,28 @@ Always:
 - Keep code examples under 20 lines
 ```
 
+## Agent Injection Thresholds
+
+GoClaw decides whether to embed skills inline in the system prompt or fall back to `skill_search`:
+
+| Condition | Mode |
+|---|---|
+| `≤ 40 skills` AND estimated tokens `≤ 5000` | **Inline** — skills injected as XML in system prompt |
+| `> 40 skills` OR estimated tokens `> 5000` | **Search** — agent uses `skill_search` tool instead |
+
+Token estimate: `(len(name) + len(description) + 10) / 4` per skill (~100–150 tokens each).
+
+Disabled skills (`enabled = false`) are excluded from both inline and search injection.
+
+### Listing Archived Skills
+
+Skills with missing dependencies are set to `status = 'archived'` and are still visible in the Dashboard. You can list them via `GET /v1/skills?status=archived` or the `skills.list` WebSocket RPC method (which returns `enabled`, `status`, and `missing_deps` fields for each skill).
+
 ## Skill Evolution
 
 When `skill_evolve` is enabled in agent config, agents gain a `skill_manage` tool that allows them to create, update, and version skills from within conversations — a learning loop where the agent improves its own knowledge base. When `skill_evolve` is **off** (the default), the `skill_manage` tool is hidden from the LLM's tool list entirely.
+
+See [Agent Evolution](agent-evolution.md) for full details on the `skill_manage` tool and the evolution workflow.
 
 ## Common Issues
 
@@ -256,4 +342,4 @@ When `skill_evolve` is enabled in agent config, agents gain a `skill_manage` too
 - [Custom Tools](#custom-tools) — add shell-backed tools to your agents
 - [Scheduling & Cron](#scheduling-cron) — run agents on a schedule
 
-<!-- goclaw-source: 941a965 | updated: 2026-03-19 -->
+<!-- goclaw-source: 941a965 | updated: 2026-03-23 -->

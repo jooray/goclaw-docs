@@ -30,29 +30,30 @@ All team members access the task board via the `team_tasks` tool. Available acti
 |--------|-----------------|-------------|
 | `list` | `action` | Show active tasks (pagination: 30 per page) |
 | `get` | `action`, `task_id` | Get full task detail with comments, events, attachments (result: 8,000 char limit) |
-| `create` | `action`, `subject` | Create new task (lead only); optional: `description`, `priority`, `blocked_by`, `require_approval` |
+| `create` | `action`, `subject`, `assignee` | Create new task (lead only); `assignee` is **mandatory**; optional: `description`, `priority`, `blocked_by`, `require_approval` |
 | `claim` | `action`, `task_id` | Atomically claim a pending task |
 | `complete` | `action`, `task_id`, `result` | Mark task done with result summary |
 | `cancel` | `action`, `task_id` | Cancel task (lead only); optional: `text` (reason) |
-| `search` | `action`, `query` | Full-text search over subject + description |
-
-> **Team v2 actions** (require team version 2):
-
-| Action | Required Params | Description |
-|--------|-----------------|-------------|
-| `review` | `action`, `task_id` | Submit in-progress task for review (owner only) |
-| `approve` | `action`, `task_id` | Approve a task in review (lead only) |
-| `reject` | `action`, `task_id` | Reject a task in review (lead only); optional: `text` (reason) |
-| `comment` | `action`, `task_id`, `text` | Add a comment to a task |
+| `assign` | `action`, `task_id`, `assignee` | Admin-assign a pending task to an agent |
+| `search` | `action`, `query` | Full-text search over subject + description (check before creating to avoid duplicates) |
+| `review` | `action`, `task_id` | Submit in-progress task for review; transitions to `in_review` (owner only) |
+| `approve` | `action`, `task_id` | Approve a task in review → `completed` (lead/admin only) |
+| `reject` | `action`, `task_id` | Reject a task in review → `cancelled` with reason injected to lead (lead/admin only); optional: `text` |
+| `comment` | `action`, `task_id`, `text` | Add a comment; use `type="blocker"` to flag a blocker (triggers auto-fail + lead escalation) |
 | `progress` | `action`, `task_id`, `percent` | Update progress 0-100 (owner only); optional: `text` (step description) |
 | `update` | `action`, `task_id` | Update task subject or description (lead only) |
 | `attach` | `action`, `task_id`, `file_id` | Attach a workspace file to a task |
-| `await_reply` | `action`, `task_id`, `text` | Set a follow-up reminder (owner only) |
-| `clear_followup` | `action`, `task_id` | Clear follow-up reminders (owner or lead) |
+| `ask_user` | `action`, `task_id`, `text` | Set a periodic follow-up reminder sent to user (owner only) |
+| `clear_followup` | `action`, `task_id` | Clear ask_user reminders (owner or lead) |
+| `retry` | `action`, `task_id` | Re-dispatch a `stale` or `failed` task back to `pending` (admin/lead) |
 
 ## Create a Task
 
 **Lead creates a task** for members to work on:
+
+> **Note**: The `assignee` field is **mandatory** at task creation. Omitting it returns an error: `"assignee is required — specify which team member should handle this task"`.
+
+> **Note**: Agents must call `search` before `create` to avoid duplicate tasks. Creating without checking first returns an error prompting the search.
 
 ```json
 {
@@ -60,6 +61,7 @@ All team members access the task board via the `team_tasks` tool. Available acti
   "subject": "Extract key points from research paper",
   "description": "Read the PDF and summarize main findings in bullet points",
   "priority": 10,
+  "assignee": "researcher",
   "blocked_by": []
 }
 ```
@@ -142,6 +144,46 @@ flowchart LR
     B_DONE --> UNBLOCK
     UNBLOCK -->|all done| C_READY["Task C: pending<br/>(ready to claim)"]
 ```
+
+## Blocker Escalation
+
+When a member is stuck, they post a blocker comment:
+
+```json
+{
+  "action": "comment",
+  "task_id": "550e8400-...",
+  "text": "Cannot find API documentation",
+  "type": "blocker"
+}
+```
+
+What happens automatically:
+1. Comment saved with `comment_type='blocker'`
+2. Task **auto-fails** (`in_progress` → `failed`)
+3. Member's session is cancelled; UI dashboard updates in real-time
+4. **Lead receives an escalation message** from `system:escalation` with the blocked member name, task number, blocker reason, and a `retry` instruction
+
+The lead can then fix the issue and re-dispatch:
+
+```json
+{
+  "action": "retry",
+  "task_id": "550e8400-..."
+}
+```
+
+Blocker escalation is enabled by default. Disable per-team via settings: `{"blocker_escalation": {"enabled": false}}`.
+
+## Review Workflow
+
+For tasks requiring human approval, set `require_approval: true` at creation:
+
+1. **Member submits**: `action="review"` → task moves to `in_review`
+2. **Human approves** (dashboard): `action="approve"` → task moves to `completed`
+3. **Human rejects** (dashboard): `action="reject"` → task moves to `cancelled`; lead receives notification
+
+Without `require_approval`, tasks move directly to `completed` after `complete` (no in_review stage).
 
 ## List & Search
 
@@ -262,9 +304,11 @@ Note: the cancel reason is passed via the `text` parameter (not `reason`).
 ## Best Practices
 
 1. **Create tasks first**: Always create a task before delegating work (lead only)
-2. **Use priority**: Set priority based on urgency (100 = urgent, 10 = high, 0 = normal)
-3. **Add dependencies**: Link related tasks with `blocked_by` to enforce order
-4. **Include context**: Write clear descriptions so members know what to do
-5. **Check before claiming**: Use `list` to see what's available before claiming
+2. **Always set assignee**: The `assignee` field is mandatory — specify the team member at creation
+3. **Search before creating**: Use `action=search` to check for similar tasks before creating to avoid duplicates
+4. **Use priority**: Set priority based on urgency (100 = urgent, 10 = high, 0 = normal)
+5. **Add dependencies**: Link related tasks with `blocked_by` to enforce order
+6. **Include context**: Write clear descriptions so members know what to do
+7. **Use blocker comments**: If stuck, post a `type="blocker"` comment — the lead is automatically notified
 
-<!-- goclaw-source: 57754a5 | updated: 2026-03-19 -->
+<!-- goclaw-source: 57754a5 | updated: 2026-03-23 -->

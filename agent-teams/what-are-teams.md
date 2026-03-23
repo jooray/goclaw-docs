@@ -5,16 +5,15 @@ Agent teams enable multiple agents to collaborate on shared tasks. A **lead** ag
 ## The Team Model
 
 Teams consist of:
-- **Lead Agent**: Orchestrates work, creates and assigns tasks via `team_tasks`, synthesizes results
-- **Member Agents**: Receive dispatched tasks, execute independently, complete with results
-- **Reviewer Agents** (optional): Evaluate task results; respond with `APPROVED` or `REJECTED: <feedback>`
+- **Lead Agent**: Orchestrates work, creates and assigns tasks via `team_tasks`, delegates to members, synthesizes results
+- **Member Agents**: Receive dispatched tasks, execute independently, complete with results, can send progress updates via mailbox
 - **Shared Task Board**: Track work, dependencies, priority, status
-- **Team Mailbox**: Direct messages between members via `team_message`; lead does not have the mailbox tool
+- **Team Mailbox**: Direct messages between all team members via `team_message`
 
 ```mermaid
 flowchart TD
     subgraph Team["Agent Team"]
-        LEAD["Lead Agent<br/>Orchestrates work, assigns tasks,<br/>synthesizes results"]
+        LEAD["Lead Agent<br/>Orchestrates work, creates tasks,<br/>delegates to members, synthesizes results"]
         M1["Member A<br/>Claims and executes tasks"]
         M2["Member B<br/>Claims and executes tasks"]
         M3["Member C<br/>Claims and executes tasks"]
@@ -26,31 +25,46 @@ flowchart TD
     end
 
     USER["User"] -->|message| LEAD
-    LEAD -->|team_tasks create+assign| M1 & M2 & M3
-    M1 & M2 & M3 -->|complete with result| LEAD
+    LEAD -->|create task + delegate| M1 & M2 & M3
+    M1 & M2 & M3 -->|results auto-announced| LEAD
     LEAD -->|synthesized response| USER
 
     LEAD & M1 & M2 & M3 <--> TB
-    M1 & M2 & M3 <--> MB
+    LEAD & M1 & M2 & M3 <--> MB
 ```
 
 ## Key Design Principles
 
-**TEAM.md for all**: Every agent in a team — lead and members — receives `TEAM.md` injected into their system prompt. The content is role-aware: leads get full orchestration instructions (`team_tasks` patterns, dependency chains, follow-up reminders); members get execution guidance (`team_tasks` progress reporting).
+**Lead-centric TEAM.md**: Only the lead receives `TEAM.md` with full orchestration instructions — mandatory workflow, delegation patterns, follow-up reminders. Members discover context on demand through tools; no wasted tokens on idle agents.
 
-**Auto-completion**: When a member completes a task, blocked dependents automatically become pending and are dispatched. No manual bookkeeping.
+**Mandatory task tracking**: Every delegation from a lead must be linked to a task on the board. The system enforces this — delegations without a `team_task_id` are rejected, with a list of pending tasks provided to help the lead self-correct.
 
-**Parallel work**: Multiple members work simultaneously on independent assigned tasks; each completes independently and the lead is notified per-task.
+**Auto-completion**: When a delegation finishes, the linked task is automatically marked as complete. Files created during execution are auto-linked to the task. No manual bookkeeping.
 
-**Lead cannot use the mailbox**: The `team_message` tool is removed from the lead's tool list by policy. Leads coordinate via `team_tasks`; members use `team_message` to send direct messages to each other.
+**Blocker escalation**: Members can flag themselves as blocked by posting a blocker comment on a task. This auto-fails the task and delivers an escalation message to the lead with the blocked member name, task subject, blocker reason, and retry instructions.
+
+**Parallel batching**: When multiple members work simultaneously, results are collected and delivered to the lead in a single combined announcement.
+
+**Member scope**: Members do not have spawn or delegate access. They work within the team structure — executing tasks, reporting progress, and communicating via mailbox.
+
+## Team Workspace
+
+Each team has a shared workspace for files produced during task execution. Workspace scoping is configurable:
+
+| Mode | Directory | Use Case |
+|------|-----------|----------|
+| **Isolated** (default) | `{dataDir}/teams/{teamID}/{chatID}/` | Per-conversation isolation |
+| **Shared** | `{dataDir}/teams/{teamID}/` | All members access same folder |
+
+Configure via `workspace_scope: "shared"` in team settings. Files written during task execution are automatically stored in the workspace and linked to the active task.
 
 ## Real-World Example
 
 **Scenario**: User asks the lead to analyze a research paper and write a summary.
 
 1. Lead receives request
-2. Lead calls `team_tasks(action="create", subject="Extract key points from paper", assignee="researcher")` — system dispatches to researcher
-3. Researcher receives task, works independently, calls `team_tasks(action="complete", result="<findings>")` — lead is notified
+2. Lead calls `team_tasks(action="create", subject="Extract key points from paper", assignee="researcher")` — system dispatches to researcher with a linked `team_task_id`
+3. Researcher receives task, works independently, calls `team_tasks(action="complete", result="<findings>")` — linked task auto-completed, lead is notified
 4. Lead calls `team_tasks(action="create", subject="Write summary", assignee="writer", description="Use researcher findings: <findings>", blocked_by=["<researcher-task-id>"])`
 5. Writer's task unblocks automatically when researcher finishes, writer completes with result
 6. Lead synthesizes and sends final response to user
@@ -61,9 +75,9 @@ flowchart TD
 |--------|-----------|-------------------|-----------|
 | **Coordination** | Lead orchestrates with task board | Parent waits for result | Direct peer-to-peer |
 | **Task Tracking** | Shared task board, dependencies, priorities | No tracking | No tracking |
-| **Messaging** | Members use mailbox; lead uses team_tasks | Parent-only | Parent-only |
+| **Messaging** | All members use mailbox | Parent-only | Parent-only |
 | **Scalability** | Designed for 3-10 members | Simple parent-child | One-to-one links |
-| **TEAM.md Context** | All members get role-aware TEAM.md | Not applicable | Not applicable |
+| **TEAM.md Context** | Lead gets full instructions; members get execution guidance | Not applicable | Not applicable |
 | **Use Case** | Parallel research, content review, analysis | Quick delegate & wait | Conversation handoff |
 
 **Use Teams When**:
@@ -81,4 +95,4 @@ flowchart TD
 - Conversation needs to transfer between agents
 - No task board or orchestration needed
 
-<!-- goclaw-source: 57754a5 | updated: 2026-03-18 -->
+<!-- goclaw-source: 57754a5 | updated: 2026-03-23 -->

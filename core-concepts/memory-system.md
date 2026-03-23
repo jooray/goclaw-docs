@@ -31,19 +31,22 @@ When an agent writes to `MEMORY.md` or files in `memory/*`, GoClaw:
 
 ### Searching Memory
 
-When an agent calls `memory_search`, GoClaw runs a hybrid search:
+When an agent calls `memory_search`, GoClaw runs a hybrid search combining FTS and vector similarity:
 
 | Method | Weight | How It Works |
 |--------|:------:|-------------|
-| Full-text search (FTS) | 0.3 | PostgreSQL `tsvector` matching — good for exact terms |
+| Full-text search (FTS) | 0.3 | PostgreSQL `tsvector` + `plainto_tsquery('simple')` — good for exact terms |
 | Vector similarity | 0.7 | `pgvector` cosine distance — good for semantic meaning |
 
-Results are combined and scored:
+**Weighted merge algorithm**: FTS scores are normalized to 0..1 range (vector scores are already 0..1), then combined as `(FTS × 0.3) + (vector × 0.7)`. When only one channel returns results, its scores are used directly (effective weight normalized to 1.0).
 
-1. FTS score × 0.3 + Vector score × 0.7 *(when both sources return results; if one source is empty, all weight goes to the available source)*
-2. Per-user boost: results scoped to the current user get a 1.2× multiplier
-3. Deduplication: if both user-scoped and global results match, user copy wins
-4. Normalize: divide all scores by the highest score
+Results are then ranked:
+
+1. Per-user boost: results scoped to the current user get a 1.2× multiplier
+2. Deduplication: if both user-scoped and global results match, user copy wins
+3. Final sort by weighted score
+
+**Embedding cache**: The `embedding_cache` table is wired into the `IndexDocument` hot path. Repeated re-indexing of unchanged content reuses cached embeddings instead of calling the embedding provider, reducing latency and API cost.
 
 **Fallback behavior**: if per-user search returns no results, GoClaw falls back to the global memory pool. This applies to both `MEMORY.md` and `memory/*.md` files.
 
@@ -69,18 +72,26 @@ During [auto-compaction](#sessions-and-history), GoClaw extracts important facts
 - **Trigger**: >50 messages OR >75% context window (either condition triggers compaction)
 - **Process**: Synchronous flush, max 5 iterations, 90-second timeout
 - **What's saved**: Key facts, user preferences, decisions, action items
+- **Order**: Memory flush runs **before** history compaction — facts are persisted first, then history is summarized and truncated
 
-Memory flush only triggers as part of auto-compaction — not independently. The flush runs synchronously inside the compaction lock and appends extracted facts to `memory/YYYY-MM-DD.md`.
+Memory flush only triggers as part of auto-compaction — not independently. The flush runs synchronously inside the compaction lock and appends extracted facts to `memory/YYYY-MM-DD.md`. This means agents gradually build up knowledge about each user without explicit "remember this" commands.
 
-This means agents gradually build up knowledge about each user without explicit "remember this" commands.
+### Extractive Memory Fallback
 
-## MEMORY.md
+If the LLM-based flush fails (timeout, provider error, bad output), GoClaw falls back to **extractive memory**: a keyword-based pass over the conversation that extracts key facts without an LLM call. This ensures memories are saved even when the LLM is unavailable, at the cost of lower quality extraction.
 
-Agents can also read/write `MEMORY.md` directly — a structured file of key facts. This file is:
+## Memory File Variants
 
-- Automatically included in the system prompt
-- Per-user for open agents, per-user for predefined agents
-- Routed to the database (not the filesystem)
+GoClaw recognizes four memory file types:
+
+| File | Role | Notes |
+|---|---|---|
+| `MEMORY.md` | Curated memory (Markdown) | Primary file; auto-included in system prompt |
+| `memory.md` | Fallback for `MEMORY.md` | Checked if `MEMORY.md` is absent |
+| `MEMORY.json` | Machine-readable index | Deprecated — no longer recommended |
+| Inline (`memory/*.md`) | Date-stamped files from auto-flush | Indexed and searchable; e.g. `memory/2026-03-23.md` |
+
+All `.md` variants are chunked, embedded, and searchable via `memory_search`. `MEMORY.json` is stored but not indexed.
 
 ## Requirements
 
@@ -106,4 +117,4 @@ Set `memory: false` in an agent's config to disable memory entirely for that age
 - [Sessions and History](#sessions-and-history) — How conversation history works
 - [Agents Explained](#agents-explained) — Agent types and context files
 
-<!-- goclaw-source: 57754a5 | updated: 2026-03-18 -->
+<!-- goclaw-source: 57754a5 | updated: 2026-03-23 -->

@@ -8,6 +8,8 @@
 
 HTTP API của GoClaw được serve trên cùng port với WebSocket gateway. Tất cả endpoint đều yêu cầu `Bearer` token trong header `Authorization` khớp với `GOCLAW_GATEWAY_TOKEN`.
 
+Tài liệu tương tác: `/docs` (Swagger UI) · spec thô: `/v1/openapi.json`
+
 **Base URL:** `http://<host>:<port>`
 
 **Auth header:**
@@ -20,11 +22,67 @@ Authorization: Bearer YOUR_GATEWAY_TOKEN
 X-GoClaw-User-Id: user123
 ```
 
-**Kiểm tra input:** Tất cả string input được sanitize trước khi sử dụng — ký tự đặc biệt SQL được escape trong ILIKE query, request body giới hạn 1 MB, tên agent/provider/tool được kiểm tra theo allowlist pattern (`[a-zA-Z0-9_-]`).
+### Header phổ biến
+
+| Header | Mục đích |
+|--------|---------|
+| `Authorization` | Bearer token |
+| `X-GoClaw-User-Id` | External user ID cho multi-tenant context |
+| `X-GoClaw-Agent-Id` | Agent identifier cho scoped operation |
+| `X-GoClaw-Tenant-Id` | Tenant scope — UUID hoặc slug |
+| `Accept-Language` | Locale (`en`, `vi`, `zh`) cho i18n error message |
+
+**Kiểm tra input:** Tất cả string input được sanitize — ký tự đặc biệt SQL được escape trong ILIKE query, request body giới hạn 1 MB, tên agent/provider/tool được kiểm tra theo allowlist pattern (`[a-zA-Z0-9_-]`).
+
+---
+
+## Chat Completions
+
+API chat tương thích OpenAI để truy cập agent theo chương trình.
+
+### `POST /v1/chat/completions`
+
+```bash
+curl -X POST http://localhost:18790/v1/chat/completions \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "goclaw:agent-id-or-key",
+    "messages": [{"role": "user", "content": "Hello"}],
+    "stream": false
+  }'
+```
+
+**Response** (non-streaming):
+
+```json
+{
+  "id": "chatcmpl-...",
+  "object": "chat.completion",
+  "choices": [{
+    "index": 0,
+    "message": {"role": "assistant", "content": "..."},
+    "finish_reason": "stop"
+  }],
+  "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}
+}
+```
+
+Đặt `"stream": true` để nhận SSE chunk kết thúc bằng `data: [DONE]`.
+
+---
+
+## OpenResponses Protocol
+
+### `POST /v1/responses`
+
+Protocol dựa trên response thay thế (tương thích OpenAI Responses API). Nhận cùng auth và trả về response object có cấu trúc.
 
 ---
 
 ## Agents
+
+CRUD để quản lý agent. Yêu cầu header `X-GoClaw-User-Id` cho multi-tenant context.
 
 ### `GET /v1/agents`
 
@@ -83,6 +141,33 @@ Kích hoạt lại LLM-based summoning cho predefined agent.
 | `POST` | `/v1/agents/{id}/shares` | Chia sẻ agent với user |
 | `DELETE` | `/v1/agents/{id}/shares/{userID}` | Thu hồi share |
 
+### Predefined Agent Instances
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/agents/{id}/instances` | Liệt kê user instance |
+| `GET` | `/v1/agents/{id}/instances/{userID}/files` | Liệt kê context file của user |
+| `GET` | `/v1/agents/{id}/instances/{userID}/files/{fileName}` | Lấy context file cụ thể |
+| `PUT` | `/v1/agents/{id}/instances/{userID}/files/{fileName}` | Cập nhật user file (chỉ USER.md) |
+| `PATCH` | `/v1/agents/{id}/instances/{userID}/metadata` | Cập nhật instance metadata |
+
+### Wake (External Trigger)
+
+```
+POST /v1/agents/{id}/wake
+```
+
+```json
+{
+  "message": "Process new data",
+  "session_key": "optional-session",
+  "user_id": "optional-user",
+  "metadata": {}
+}
+```
+
+Response: `{content, run_id, usage?}`. Dùng bởi orchestrator (n8n, Paperclip) để kích hoạt agent run từ bên ngoài.
+
 ---
 
 ## Providers
@@ -108,6 +193,8 @@ curl -X POST http://localhost:18790/v1/providers \
     "enabled": true
   }'
 ```
+
+**Loại được hỗ trợ:** `anthropic_native`, `openai_compat`, `chatgpt_oauth`, `gemini_native`, `dashscope`, `bailian`, `minimax`, `claude_cli`, `acp`
 
 ### `GET /v1/providers/{id}`
 
@@ -163,6 +250,10 @@ Cập nhật skill metadata.
 
 Xóa skill.
 
+### `POST /v1/skills/{id}/toggle`
+
+Bật/tắt skill.
+
 ### Skill Grants
 
 | Method | Path | Mô tả |
@@ -172,6 +263,100 @@ Xóa skill.
 | `POST` | `/v1/skills/{id}/grants/user` | Cấp skill cho user |
 | `DELETE` | `/v1/skills/{id}/grants/user/{userID}` | Thu hồi user grant |
 | `GET` | `/v1/agents/{agentID}/skills` | Liệt kê skills agent có thể truy cập |
+
+### Skill Files & Dependencies
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/skills/{id}/versions` | Liệt kê version có sẵn |
+| `GET` | `/v1/skills/{id}/files` | Liệt kê file trong skill |
+| `GET` | `/v1/skills/{id}/files/{path...}` | Đọc nội dung file |
+| `POST` | `/v1/skills/rescan-deps` | Rescan runtime dependency |
+| `POST` | `/v1/skills/install-deps` | Cài đặt tất cả dependency còn thiếu |
+| `POST` | `/v1/skills/install-dep` | Cài đặt một dependency đơn lẻ |
+| `GET` | `/v1/skills/runtimes` | Kiểm tra runtime có sẵn |
+
+---
+
+## Tools
+
+### Direct Invocation
+
+```
+POST /v1/tools/invoke
+```
+
+```json
+{
+  "tool": "web_fetch",
+  "action": "fetch",
+  "args": {"url": "https://example.com"},
+  "dryRun": false,
+  "agentId": "optional",
+  "channel": "optional",
+  "chatId": "optional",
+  "peerKind": "direct"
+}
+```
+
+Đặt `"dryRun": true` để trả về tool schema mà không thực thi.
+
+### Built-in Tools
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/tools/builtin` | Liệt kê tất cả built-in tool |
+| `GET` | `/v1/tools/builtin/{name}` | Lấy định nghĩa tool |
+| `PUT` | `/v1/tools/builtin/{name}` | Cập nhật enabled/settings |
+
+### Custom Tools
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/tools/custom` | Liệt kê custom tool (có phân trang) |
+| `POST` | `/v1/tools/custom` | Tạo custom tool |
+| `GET` | `/v1/tools/custom/{id}` | Lấy chi tiết tool |
+| `PUT` | `/v1/tools/custom/{id}` | Cập nhật tool |
+| `DELETE` | `/v1/tools/custom/{id}` | Xóa tool |
+
+Query param cho list: `agent_id`, `search`, `limit`, `offset`
+
+---
+
+## Memory
+
+Vector memory per-agent sử dụng pgvector.
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/memory/documents` | Liệt kê tất cả document globally |
+| `GET` | `/v1/agents/{agentID}/memory/documents` | Liệt kê document của agent |
+| `GET` | `/v1/agents/{agentID}/memory/documents/{path...}` | Lấy chi tiết document |
+| `PUT` | `/v1/agents/{agentID}/memory/documents/{path...}` | Tạo/cập nhật document |
+| `DELETE` | `/v1/agents/{agentID}/memory/documents/{path...}` | Xóa document |
+| `GET` | `/v1/agents/{agentID}/memory/chunks` | Liệt kê chunk của document |
+| `POST` | `/v1/agents/{agentID}/memory/index` | Index một document |
+| `POST` | `/v1/agents/{agentID}/memory/index-all` | Index tất cả document |
+| `POST` | `/v1/agents/{agentID}/memory/search` | Semantic search |
+
+Query param tùy chọn `?user_id=` để scope theo user.
+
+---
+
+## Knowledge Graph
+
+Đồ thị entity-relation per-agent.
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/agents/{agentID}/kg/entities` | Liệt kê/tìm kiếm entity (BM25) |
+| `GET` | `/v1/agents/{agentID}/kg/entities/{entityID}` | Lấy entity kèm relation |
+| `POST` | `/v1/agents/{agentID}/kg/entities` | Upsert entity |
+| `DELETE` | `/v1/agents/{agentID}/kg/entities/{entityID}` | Xóa entity |
+| `POST` | `/v1/agents/{agentID}/kg/traverse` | Duyệt đồ thị (tối đa độ sâu 3) |
+| `POST` | `/v1/agents/{agentID}/kg/extract` | Trích xuất entity bằng LLM |
+| `GET` | `/v1/agents/{agentID}/kg/stats` | Thống kê knowledge graph |
+| `GET` | `/v1/agents/{agentID}/kg/graph` | Toàn bộ đồ thị để trực quan hóa |
 
 ---
 
@@ -189,6 +374,28 @@ curl "http://localhost:18790/v1/traces?agentId=UUID&limit=50" \
 ### `GET /v1/traces/{traceID}`
 
 Lấy một trace cùng tất cả spans của nó.
+
+### `GET /v1/traces/{traceID}/export`
+
+Xuất cây trace dưới dạng gzipped JSON.
+
+### Costs
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/costs/summary` | Tóm tắt chi phí theo agent/khoảng thời gian |
+
+---
+
+## Usage & Analytics
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/usage/timeseries` | Điểm dữ liệu usage theo thời gian |
+| `GET` | `/v1/usage/breakdown` | Phân tích theo provider/model/channel |
+| `GET` | `/v1/usage/summary` | Tóm tắt với so sánh kỳ trước |
+
+**Query param:** `from`, `to` (RFC 3339), `agent_id`, `provider`, `model`, `channel`, `group_by`
 
 ---
 
@@ -215,7 +422,7 @@ curl -X POST http://localhost:18790/v1/mcp/servers \
   }'
 ```
 
-Transport options: `"stdio"`, `"sse"`, `"streamable-http"`.
+Transport: `"stdio"`, `"sse"`, `"streamable-http"`.
 
 ### `GET /v1/mcp/servers/{id}`
 
@@ -258,68 +465,6 @@ Liệt kê tool được discover từ MCP server đang chạy.
 
 ---
 
-## Custom Tools
-
-### `GET /v1/tools/custom`
-
-Liệt kê custom (DB-backed) tools.
-
-### `POST /v1/tools/custom`
-
-Tạo custom tool.
-
-```bash
-curl -X POST http://localhost:18790/v1/tools/custom \
-  -H "Authorization: Bearer TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "run_tests",
-    "description": "Run the test suite",
-    "parameters": {},
-    "command": "npm test",
-    "working_dir": "/app",
-    "timeout_seconds": 120,
-    "enabled": true
-  }'
-```
-
-### `GET /v1/tools/custom/{id}`
-
-Lấy custom tool.
-
-### `PUT /v1/tools/custom/{id}`
-
-Cập nhật custom tool.
-
-### `DELETE /v1/tools/custom/{id}`
-
-Xóa custom tool.
-
----
-
-## Built-in Tools
-
-### `GET /v1/tools/builtin`
-
-Liệt kê tất cả built-in tool với trạng thái bật/tắt.
-
-### `GET /v1/tools/builtin/{name}`
-
-Lấy built-in tool theo tên.
-
-### `PUT /v1/tools/builtin/{name}`
-
-Bật hoặc tắt built-in tool.
-
-```bash
-curl -X PUT http://localhost:18790/v1/tools/builtin/exec \
-  -H "Authorization: Bearer TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{ "enabled": false }'
-```
-
----
-
 ## Channel Instances
 
 ### `GET /v1/channels/instances`
@@ -343,6 +488,8 @@ curl -X POST http://localhost:18790/v1/channels/instances \
   }'
 ```
 
+**Channel được hỗ trợ:** `telegram`, `discord`, `slack`, `whatsapp`, `zalo_oa`, `zalo_personal`, `feishu`
+
 ### `GET /v1/channels/instances/{id}`
 
 Lấy channel instance.
@@ -355,7 +502,7 @@ Cập nhật channel instance.
 
 Xóa channel instance.
 
-### Telegram Group Writers
+### Group Writers
 
 | Method | Path | Mô tả |
 |--------|------|-------|
@@ -366,15 +513,160 @@ Xóa channel instance.
 
 ---
 
+## Contacts
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/contacts` | Liệt kê contact (có phân trang) |
+| `GET` | `/v1/contacts/resolve?ids=...` | Resolve contact theo ID (tối đa 100) |
+| `POST` | `/v1/contacts/merge` | Gộp các contact trùng lặp |
+
+---
+
+## Sessions
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/sessions` | Liệt kê session (có phân trang) |
+| `GET` | `/v1/sessions/{key}` | Lấy session kèm message |
+| `DELETE` | `/v1/sessions/{key}` | Xóa session |
+| `POST` | `/v1/sessions/{key}/reset` | Xóa tất cả message của session |
+| `PATCH` | `/v1/sessions/{key}` | Cập nhật label, model, metadata |
+
+---
+
+## Team Events
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/teams/{id}/events` | Liệt kê team event (có phân trang) |
+
+---
+
 ## Delegations
 
 ### `GET /v1/delegations`
 
 Liệt kê lịch sử delegation (agent-to-agent task handoff).
 
+**Filter:** `source_agent_id`, `target_agent_id`, `team_id`, `user_id`, `status`, `limit`, `offset`
+
 ### `GET /v1/delegations/{id}`
 
 Lấy một delegation record.
+
+---
+
+## Pending Messages
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/pending-messages` | Liệt kê tất cả group kèm tiêu đề |
+| `GET` | `/v1/pending-messages/messages` | Liệt kê message theo channel+key |
+| `DELETE` | `/v1/pending-messages` | Xóa message group |
+| `POST` | `/v1/pending-messages/compact` | Tóm tắt bằng LLM (async, 202) |
+
+---
+
+## Secure CLI Credentials
+
+Yêu cầu **admin role** (full gateway token hoặc gateway token rỗng ở chế độ dev/single-user).
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/cli-credentials` | Liệt kê tất cả credential |
+| `POST` | `/v1/cli-credentials` | Tạo credential mới |
+| `GET` | `/v1/cli-credentials/{id}` | Lấy chi tiết credential |
+| `PUT` | `/v1/cli-credentials/{id}` | Cập nhật credential |
+| `DELETE` | `/v1/cli-credentials/{id}` | Xóa credential |
+| `GET` | `/v1/cli-credentials/presets` | Lấy preset credential template |
+| `POST` | `/v1/cli-credentials/{id}/test` | Test kết nối credential (dry-run) |
+
+---
+
+## Runtime & Packages
+
+Quản lý package system (apk), Python (pip), và Node (npm). Yêu cầu authentication.
+
+### `GET /v1/packages`
+
+Liệt kê tất cả package đã cài, nhóm theo category (system, pip, npm).
+
+### `POST /v1/packages/install`
+
+```json
+{ "package": "github-cli" }
+```
+
+Dùng prefix `"pip:pandas"` hoặc `"npm:typescript"` để chỉ định package manager. Không có prefix thì mặc định là system (apk).
+
+### `POST /v1/packages/uninstall`
+
+Cùng format với install.
+
+### `GET /v1/packages/runtimes`
+
+Kiểm tra Python và Node runtime có sẵn hay không.
+
+```json
+{ "python": true, "node": true }
+```
+
+---
+
+## Storage
+
+Quản lý file workspace.
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/storage/files` | Liệt kê file với giới hạn độ sâu |
+| `GET` | `/v1/storage/files/{path...}` | Đọc file (JSON hoặc raw) |
+| `DELETE` | `/v1/storage/files/{path...}` | Xóa file/thư mục |
+| `GET` | `/v1/storage/size` | Stream kích thước storage (SSE, cache 60 phút) |
+
+`?raw=true` — serve MIME type gốc. `?depth=N` — giới hạn độ sâu traversal.
+
+---
+
+## Media
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `POST` | `/v1/media/upload` | Upload file (multipart, tối đa 50 MB) |
+| `GET` | `/v1/media/{id}` | Serve media theo ID kèm cache |
+
+Auth qua Bearer token hoặc query param `?token=` (dùng cho tag `<img>` và `<audio>`).
+
+---
+
+## Files
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/files/{path...}` | Serve workspace file theo path |
+
+---
+
+## API Keys
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/api-keys` | Liệt kê tất cả API key (đã che) |
+| `POST` | `/v1/api-keys` | Tạo API key (trả về key thô một lần) |
+| `POST` | `/v1/api-keys/{id}/revoke` | Thu hồi API key |
+
+### Create Request
+
+```json
+{
+  "name": "ci-deploy",
+  "scopes": ["operator.read", "operator.write"],
+  "expires_in": 2592000
+}
+```
+
+Field `key` chỉ được trả về trong response tạo mới. Các lần gọi sau chỉ hiển thị `prefix`.
 
 ---
 
@@ -386,6 +678,38 @@ Lấy một delegation record.
 | `POST` | `/v1/auth/openai/start` | Khởi động OAuth flow |
 | `POST` | `/v1/auth/openai/callback` | Xử lý OAuth callback thủ công |
 | `POST` | `/v1/auth/openai/logout` | Xóa OAuth token đã lưu |
+
+---
+
+## Tenants
+
+Quản lý multi-tenant (chỉ gateway token scope).
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/tenants` | Liệt kê tenant |
+| `POST` | `/v1/tenants` | Tạo tenant |
+| `GET` | `/v1/tenants/{id}` | Lấy tenant |
+| `PUT` | `/v1/tenants/{id}` | Cập nhật tenant |
+| `DELETE` | `/v1/tenants/{id}` | Xóa tenant |
+
+---
+
+## Activity & Audit
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/v1/activity` | Liệt kê activity audit log (có thể filter) |
+
+---
+
+## System
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| `GET` | `/health` | Health check (không cần auth) |
+| `GET` | `/v1/openapi.json` | OpenAPI 3.0 spec |
+| `GET` | `/docs` | Swagger UI |
 
 ---
 
@@ -401,7 +725,29 @@ Lấy một delegation record.
 { "error": "agent not found" }
 ```
 
-HTTP status code theo quy ước REST: `200` OK, `201` Created, `400` Bad Request, `401` Unauthorized, `404` Not Found, `500` Internal Error.
+| Code | Ý nghĩa |
+|------|---------|
+| `200` | OK |
+| `201` | Created |
+| `400` | Bad request (JSON không hợp lệ, thiếu field) |
+| `401` | Unauthorized |
+| `403` | Forbidden |
+| `404` | Not found |
+| `409` | Conflict (tên trùng lặp) |
+| `429` | Rate limited |
+| `500` | Internal server error |
+
+Error message được localize theo header `Accept-Language`.
+
+---
+
+## Endpoint chỉ có trên WebSocket
+
+Các endpoint sau **chỉ có trên WebSocket RPC**, không có HTTP:
+
+- **Cron jobs:** Liệt kê, tạo, cập nhật, xóa, logs (`cron.*`)
+- **Config management:** Lấy, áp dụng, patch (`config.*`)
+- **Gửi message:** Gửi đến channel (`send.*`)
 
 ---
 
@@ -411,4 +757,4 @@ HTTP status code theo quy ước REST: `200` OK, `201` Created, `400` Bad Reques
 - [Config Reference](#config-reference) — schema đầy đủ `config.json`
 - [Database Schema](#database-schema) — định nghĩa bảng và quan hệ
 
-<!-- goclaw-source: 120fc2d | cập nhật: 2026-03-18 -->
+<!-- goclaw-source: 120fc2d | cập nhật: 2026-03-23 -->

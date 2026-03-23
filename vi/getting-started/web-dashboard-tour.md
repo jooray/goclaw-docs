@@ -71,11 +71,16 @@ Nhấn vào agent để mở trang chi tiết với các tab:
 
 #### Agent Teams
 
-Tạo agent team cho các tác vụ cộng tác. Nhấn vào team để xem:
-- **Members** — Gán agent vào team và quản lý vai trò
-- **Tasks** — Task board chung của team
-- **Delegations** — Theo dõi agent nào đã phân công tác vụ cho agent khác, kèm trạng thái và kết quả
-- **Settings** — Cấu hình team
+Tạo agent team cho các tác vụ cộng tác. Danh sách team hỗ trợ chuyển đổi xem dạng card/list.
+
+<!-- TODO: Screenshot — Team kanban board với task card -->
+
+Nhấn vào team để xem **kanban board** với quản lý task kéo-thả:
+- **Board** — Bảng task trực quan với cột cho mỗi trạng thái (pending, in_progress, in_review, completed, failed, cancelled, blocked, stale)
+- **Members** — Gán agent vào team, xem thông tin thành viên kèm metadata và emoji agent
+- **Tasks** — Danh sách task với bộ lọc, quy trình phê duyệt (approve/reject), và blocker escalation
+- **Workspace** — Workspace file dùng chung với lazy-load folder và kiểm soát độ sâu storage
+- **Settings** — Cấu hình team, blocker escalation, escalation mode, workspace scope
 
 ### Conversations
 
@@ -114,9 +119,13 @@ Quản lý và ghép nối gateway node. Ghép nối phiên trình duyệt với
 
 Upload file `SKILL.md` để agent có thể khám phá và sử dụng. Skills có thể tìm kiếm bằng semantic matching — agent tìm đúng skill dựa trên yêu cầu của người dùng.
 
+#### Custom Tools
+
+Tạo và quản lý custom tool với command template, biến môi trường, và deny pattern blocking.
+
 #### Builtin Tools
 
-Duyệt 32 tool tích hợp sẵn của GoClaw. Bật/tắt từng tool và chỉnh sửa settings của chúng.
+Duyệt 50+ tool tích hợp sẵn của GoClaw. Bật/tắt từng tool và cấu hình settings (bao gồm Knowledge Graph, media provider chain, và web fetch extractor chain).
 
 #### MCP Servers
 
@@ -132,7 +141,9 @@ Cấu hình dịch vụ Text-to-Speech. Các provider hỗ trợ: OpenAI, Eleven
 
 #### Cron Jobs
 
-Lên lịch tác vụ qua form dialog. Điền tên, chọn agent, chọn loại lịch, và viết message cho agent biết cần làm gì. Ba loại lịch:
+<!-- TODO: Screenshot — Trang chi tiết cron được thiết kế lại với markdown rendering -->
+
+Lên lịch tác vụ qua trang chi tiết được thiết kế lại với hỗ trợ markdown. Điền tên, chọn agent, chọn loại lịch, và viết message cho agent biết cần làm gì. Ba loại lịch:
 - **Every** — chạy theo khoảng thời gian cố định (tính bằng giây)
 - **Cron** — chạy theo cron expression (ví dụ `0 9 * * *`)
 - **Once** — chạy một lần sau một khoảng delay ngắn
@@ -187,7 +198,9 @@ Log hệ thống để debug và giám sát hoạt động gateway.
 
 #### Providers
 
-Quản lý LLM provider (API key, cấu hình model). Hỗ trợ Anthropic (native) và các provider tương thích OpenAI.
+<!-- TODO: Screenshot — Trang chi tiết provider được thiết kế lại -->
+
+Quản lý LLM provider với trang chi tiết hiện đại được thiết kế lại. Tạo, cấu hình và xác minh provider. Hỗ trợ Anthropic (native), OpenAI, Azure OpenAI với Foundry headers, và 20+ provider khác. Hiển thị phiên bản server trong trạng thái kết nối sidebar.
 
 #### Config
 
@@ -203,7 +216,13 @@ Quản lý thông tin xác thực CLI cho truy cập dòng lệnh an toàn vào 
 
 #### API Keys
 
-Quản lý API key cho truy cập lập trình — tạo, thu hồi và gán role cho key.
+Quản lý API key cho truy cập lập trình — tạo, thu hồi và gán role cho key. Key dùng định dạng tiền tố `goclaw_` và hỗ trợ scope dựa trên role (admin, operator, viewer).
+
+#### Tenants (Chế độ Multi-Tenant)
+
+<!-- TODO: Screenshot — Trang quản trị tenant -->
+
+Quản lý tenant trong chế độ triển khai SaaS — tạo tenant, gán user, cấu hình ghi đè riêng theo tenant cho provider, tool, skill, và MCP server. Chỉ hiển thị khi chạy ở chế độ multi-tenant.
 
 ## Các vấn đề thường gặp
 
@@ -219,4 +238,13 @@ Quản lý API key cho truy cập lập trình — tạo, thu hồi và gán rol
 - [GoClaw hoạt động như thế nào](#how-goclaw-works) — Hiểu về kiến trúc
 - [Agents Explained](#agents-explained) — Tìm hiểu về loại agent
 
-<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-18 -->
+<!-- goclaw-source: b9d87547 | cập nhật: 2026-03-23 -->
+<!-- TODO: Screenshots cần cho v2.x UI — chạy instance GoClaw và chụp:
+  1. Team kanban board với task card trong các cột
+  2. Trang chi tiết cron với markdown rendering
+  3. Trang chi tiết provider (thiết kế lại)
+  4. Trang quản trị tenant (chế độ multi-tenant)
+  5. Trang chat với media gallery và image download overlay
+  6. Sidebar hiển thị phiên bản server trong trạng thái kết nối
+  7. Trang đăng nhập với theme toggle
+-->

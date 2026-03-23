@@ -69,11 +69,16 @@ Click an agent to open its detail page with these tabs:
 
 #### Agent Teams
 
-Create agent teams for collaborative tasks. Click a team to see:
-- **Members** — Assign agents to the team and manage roles
-- **Tasks** — Shared task board for the team
-- **Delegations** — Tracks which agents delegated tasks to others, with status and results
-- **Settings** — Team configuration
+Create agent teams for collaborative tasks. The teams list supports card/list view toggle.
+
+<!-- TODO: Screenshot — Team kanban board with task cards -->
+
+Click a team to see the **kanban board** with drag-and-drop task management:
+- **Board** — Visual task board with columns for each status (pending, in_progress, in_review, completed, failed, cancelled, blocked, stale)
+- **Members** — Assign agents to the team, view member enrichment with agent metadata and emoji
+- **Tasks** — Task list view with filtering, approval workflow (approve/reject), and blocker escalation
+- **Workspace** — Shared file workspace with lazy-load folder UI and storage depth control
+- **Settings** — Team configuration, blocker escalation, escalation mode, workspace scope
 
 ### Conversations
 
@@ -112,9 +117,13 @@ Gateway node pairing and management. Pair browser sessions with gateway instance
 
 Upload `SKILL.md` files that agents can discover and use. Skills are searchable with semantic matching — agents find the right skill based on what the user asks.
 
+#### Custom Tools
+
+Create and manage custom tools with command templates, environment variables, and deny pattern blocking.
+
 #### Builtin Tools
 
-Browse the 32 built-in tools that come with GoClaw. Enable/disable individual tools and configure their settings.
+Browse the 50+ built-in tools that come with GoClaw. Enable/disable individual tools and configure their settings (including Knowledge Graph, media provider chain, and web fetch extractor chain settings).
 
 #### MCP Servers
 
@@ -130,7 +139,9 @@ Configure Text-to-Speech services. Supported providers: OpenAI, ElevenLabs, Edge
 
 #### Cron Jobs
 
-Schedule tasks via a form dialog. Fill in a name, select an agent, choose a schedule type, and write a message telling the agent what to do. Three schedule types:
+<!-- TODO: Screenshot — Redesigned cron detail page with markdown rendering -->
+
+Schedule tasks via a redesigned detail page with markdown support. Fill in a name, select an agent, choose a schedule type, and write a message telling the agent what to do. Three schedule types:
 - **Every** — run at a fixed interval (in seconds)
 - **Cron** — run on a cron expression (e.g. `0 9 * * *`)
 - **Once** — run once after a short delay
@@ -185,7 +196,9 @@ System logs for debugging and monitoring gateway operations.
 
 #### Providers
 
-Manage LLM providers (API keys, model configurations). Supports Anthropic (native) and OpenAI-compatible providers.
+<!-- TODO: Screenshot — Redesigned provider detail page -->
+
+Manage LLM providers with a redesigned modern detail page. Create, configure, and verify providers. Supports Anthropic (native), OpenAI, Azure OpenAI with Foundry headers, and 20+ other providers. Shows server version in the sidebar connection status.
 
 #### Config
 
@@ -201,7 +214,13 @@ Manage CLI credentials for secure command-line access to GoClaw.
 
 #### API Keys
 
-Manage API keys for programmatic access — create, revoke, and assign roles to keys.
+Manage API keys for programmatic access — create, revoke, and assign roles to keys. Keys use the `goclaw_` prefix format and support role-based scopes (admin, operator, viewer).
+
+#### Tenants (Multi-Tenant Mode)
+
+<!-- TODO: Screenshot — Tenant admin page -->
+
+Manage tenants in SaaS deployment mode — create tenants, assign users, configure per-tenant overrides for providers, tools, skills, and MCP servers. Only visible when running in multi-tenant mode.
 
 ## Common Issues
 
@@ -217,4 +236,13 @@ Manage API keys for programmatic access — create, revoke, and assign roles to 
 - [How GoClaw Works](#how-goclaw-works) — Understand the architecture
 - [Agents Explained](#agents-explained) — Learn about agent types
 
-<!-- goclaw-source: 57754a5 | updated: 2026-03-18 -->
+<!-- goclaw-source: b9d87547 | updated: 2026-03-23 -->
+<!-- TODO: Screenshots needed for v2.x UI — run a GoClaw instance and capture:
+  1. Team kanban board with task cards in columns
+  2. Cron detail page with markdown rendering
+  3. Provider detail page (redesigned)
+  4. Tenant admin page (multi-tenant mode)
+  5. Chat page with media gallery and image download overlay
+  6. Sidebar showing server version in connection status
+  7. Login page with theme toggle
+-->

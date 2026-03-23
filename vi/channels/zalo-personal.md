@@ -96,6 +96,8 @@ Cho phép user/nhóm cụ thể qua `allow_from`:
 
 Yêu cầu file thông tin đăng nhập có số điện thoại, mật khẩu, và device ID. Ở lần kết nối đầu tiên, tài khoản có thể yêu cầu quét QR hoặc xác minh thêm từ Zalo.
 
+**Xác thực lại bằng QR**: Khi xác thực lại qua quét QR (ví dụ sau khi session hết hạn), GoClaw huỷ an toàn session trước đó trước khi bắt đầu luồng QR mới. Cơ chế huỷ race-safe này ngăn nhiều session chạy đồng thời và tránh xung đột trong quá trình đăng nhập.
+
 ### Xử lý Media
 
 Việc gửi media bao gồm xác minh sau khi ghi — các file được xác nhận đã ghi xuống đĩa trước khi gửi đến Zalo API.

@@ -28,7 +28,16 @@ Roles are **not set directly on an API key**. Instead, you assign **scopes** and
 | `operator.pairing` | `operator` role — device pairing operations |
 | `operator.read` | `viewer` role — read-only listing and fetching |
 
-**Effective role derivation:** if a key has `operator.admin`, it is `admin`. If it has any of `operator.write`, `operator.approvals`, or `operator.pairing`, it is `operator`. `operator.read` alone yields `viewer`. A key can hold multiple scopes — the highest-privilege scope wins.
+**Role derivation (highest-privilege-wins)** via `RoleFromScopes()` in `permissions/policy.go`:
+
+```
+admin scope present              → RoleAdmin
+write / approvals / pairing      → RoleOperator
+read scope only                  → RoleViewer
+default (no scopes)              → RoleViewer
+```
+
+A key can hold multiple scopes — the highest-privilege scope wins.
 
 ---
 
@@ -52,6 +61,12 @@ Roles are **not set directly on an API key**. Instead, you assign **scopes** and
 
 ---
 
+## Backward Compatibility
+
+If `GOCLAW_GATEWAY_TOKEN` is empty (no gateway token configured), all requests — including unauthenticated ones — are granted `RoleOperator` access automatically. This lets self-hosted setups work without strict auth. Once a token is set, all requests must provide valid credentials or they receive `401 Unauthorized`.
+
+---
+
 ## Authentication
 
 All API requests use HTTP Bearer token authentication:
@@ -61,6 +76,20 @@ Authorization: Bearer <your-api-key>
 ```
 
 The gateway also accepts the static token from `auth.token` in `config.json`. That token acts as a super-admin with no scope restrictions. API keys are the recommended way to grant scoped, revocable access to external systems.
+
+---
+
+## Key Format
+
+API keys follow the format `goclaw_` + 32 lowercase hex characters (16 random bytes, 128-bit entropy):
+
+```
+goclaw_a1b2c3d4e5f6789012345678901234567890abcdef
+```
+
+The **display prefix** shown in list responses is `goclaw_` + the first 8 hex chars of the random part (e.g., `goclaw_a1b2c3d4`). This lets you identify a key in the UI without storing the secret.
+
+**Show-once pattern:** the raw `key` field is returned only in the create response. All subsequent list/get calls return only `prefix`. Copy the key immediately after creation — it cannot be retrieved again.
 
 ---
 
@@ -91,8 +120,8 @@ Response (HTTP 201):
 {
   "id": "01944f3a-1234-7abc-8def-000000000001",
   "name": "ci-pipeline",
-  "prefix": "gc_abcd",
-  "key": "gc_abcd1234...full-secret...",
+  "prefix": "goclaw_a1b2c3d4",
+  "key": "goclaw_a1b2c3d4e5f6789012345678901234567890abcdef",
   "scopes": ["operator.read", "operator.write"],
   "expires_at": "2026-04-15T00:00:00Z",
   "created_at": "2026-03-16T10:00:00Z"
@@ -119,7 +148,7 @@ Response (HTTP 200):
   {
     "id": "01944f3a-1234-7abc-8def-000000000001",
     "name": "ci-pipeline",
-    "prefix": "gc_abcd",
+    "prefix": "goclaw_a1b2c3d4",
     "scopes": ["operator.read", "operator.write"],
     "expires_at": "2026-04-15T00:00:00Z",
     "last_used_at": "2026-03-16T09:55:00Z",
@@ -228,5 +257,6 @@ When a key is created or revoked, a `cache.invalidate` event is broadcast on the
 - [Authentication & OAuth](#authentication) — gateway token and OAuth flow
 - [Exec Approval](#exec-approval) — require `operator.approvals` scope
 - [Security Hardening](#deploy-security) — full 5-layer permission overview
+- [CLI Credentials](./cli-credentials.md) — SecureCLI: inject credentials into CLI tools (gh, aws, gcloud) without exposing secrets to the agent
 
-<!-- goclaw-source: 57754a5 | updated: 2026-03-18 -->
+<!-- goclaw-source: 57754a5 | updated: 2026-03-23 -->

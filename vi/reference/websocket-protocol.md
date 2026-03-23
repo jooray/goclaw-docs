@@ -14,6 +14,18 @@ GoClaw expose WebSocket endpoint tại `/ws`. Tất cả giao tiếp client-gate
 
 ---
 
+## Giới hạn kết nối
+
+| Tham số | Giá trị | Mô tả |
+|---------|---------|-------|
+| Read limit | 512 KB | Kết nối tự đóng nếu một message vượt giới hạn |
+| Send buffer | 256 message | Message bị drop khi buffer đầy |
+| Read deadline | 60 s | Reset mỗi message hoặc pong; ngắt kết nối khi timeout |
+| Write deadline | 10 s | Timeout ghi mỗi frame |
+| Ping interval | 30 s | Server ping keepalive chủ động |
+
+---
+
 ## Loại Frame
 
 ### Request Frame (`req`)
@@ -125,6 +137,8 @@ Request đầu tiên phải là `connect`. Gateway reject bất kỳ method nào
 
 Protocol version sai hoặc token không hợp lệ trả về `ok: false` ngay lập tức.
 
+**Yêu cầu `user_id`:** Tham số `user_id` trong `connect` bắt buộc để scope session theo từng user. Đây là opaque VARCHAR(255). Với triển khai multi-tenant, dùng định dạng ghép `tenant.{tenantId}.user.{userId}` — GoClaw dùng identity propagation và tin tưởng upstream service cung cấp identity chính xác.
+
 ---
 
 ## RPC Methods
@@ -136,6 +150,7 @@ Protocol version sai hoặc token không hợp lệ trả về `ok: false` ngay 
 | `connect` | `{token, protocol}` | Xác thực. Phải là request đầu tiên |
 | `health` | — | Ping / health check |
 | `status` | — | Trạng thái gateway |
+| `providers.models` | — | Liệt kê model khả dụng từ tất cả LLM provider đã cấu hình |
 
 ### Chat
 
@@ -151,6 +166,7 @@ Protocol version sai hoặc token không hợp lệ trả về `ok: false` ngay 
 | Method | Params | Mô tả |
 |--------|--------|-------|
 | `agents.list` | — | Liệt kê tất cả agents |
+| `agent.wait` | `{agentId}` | Chờ agent hoàn thành run hiện tại |
 | `agents.create` | agent object | Tạo agent |
 | `agents.update` | `{id, ...fields}` | Cập nhật agent |
 | `agents.delete` | `{id}` | Xóa agent |
@@ -230,14 +246,34 @@ Protocol version sai hoặc token không hợp lệ trả về `ok: false` ngay 
 | `exec.approval.approve` | Phê duyệt lệnh |
 | `exec.approval.deny` | Từ chối lệnh |
 
-### Agent Links & Teams
+### Teams
 
 | Method | Mô tả |
 |--------|-------|
-| `agents.links.list/create/update/delete` | Quản lý inter-agent delegation link |
-| `teams.list/create/get/update/delete` | Team CRUD |
-| `teams.tasks.list` | Liệt kê team task |
-| `teams.members.add/remove` | Quản lý team membership |
+| `teams.list` | Liệt kê tất cả team |
+| `teams.create` | Tạo team (chỉ admin) |
+| `teams.get` | Lấy team kèm thành viên |
+| `teams.update` | Cập nhật thuộc tính team |
+| `teams.delete` | Xóa team |
+| `teams.members.add` | Thêm agent vào team |
+| `teams.members.remove` | Xóa agent khỏi team |
+| `teams.tasks.list` | Liệt kê task của team (có thể lọc) |
+| `teams.tasks.get` | Lấy task kèm comments/events |
+| `teams.tasks.create` | Tạo task |
+| `teams.tasks.claim` | Claim task (đánh dấu in-progress) |
+| `teams.tasks.assign` | Gán task cho thành viên |
+| `teams.tasks.approve` | Phê duyệt task hoàn thành |
+| `teams.tasks.reject` | Từ chối task |
+| `teams.tasks.comment` | Thêm comment vào task |
+| `teams.tasks.comments` | Liệt kê comment của task |
+| `teams.tasks.events` | Liệt kê lịch sử event của task |
+| `teams.tasks.delete` | Xóa task |
+| `teams.workspace.list` | Liệt kê file workspace của team |
+| `teams.workspace.read` | Đọc file workspace |
+| `teams.workspace.delete` | Xóa file workspace |
+| `teams.events.list` | Liệt kê lịch sử event team (phân trang) |
+| `teams.known_users` | Lấy danh sách user ID đã biết trong team |
+| `teams.scopes` | Lấy channel/chat scope cho task routing |
 
 ### Usage & Quota
 
@@ -246,6 +282,12 @@ Protocol version sai hoặc token không hợp lệ trả về `ok: false` ngay 
 | `usage.get` | Thống kê token usage |
 | `usage.summary` | Usage summary cards |
 | `quota.usage` | Quota consumption cho user hiện tại |
+
+### Logs
+
+| Method | Params | Mô tả |
+|--------|--------|-------|
+| `logs.tail` | `{action: "start"\|"stop", level?}` | Bắt đầu hoặc dừng stream log trực tiếp; log entries được gửi qua server-push event khi đang active |
 
 ---
 
@@ -294,6 +336,7 @@ Phát ra trong quá trình agent run. Kiểm tra `payload.type`:
 | `team.message.sent` | Tin nhắn peer-to-peer trong team |
 | `team.created/updated/deleted` | Thông báo Team CRUD |
 | `team.member.added/removed` | Team membership thay đổi |
+| `activity` | Bản ghi audit log hoạt động được ghi nhận |
 
 ---
 
@@ -337,4 +380,4 @@ ws.onmessage = (e) => {
 - [CLI Commands](#cli-commands) — quản lý pairing và session từ terminal
 - [Glossary](#glossary) — Session, Lane, Compaction, và các thuật ngữ quan trọng khác
 
-<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-18 -->
+<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-23 -->

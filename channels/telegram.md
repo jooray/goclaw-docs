@@ -54,6 +54,8 @@ All config keys are in `channels.telegram`:
 | `stt_timeout_seconds` | int | 30 | Timeout for STT transcription requests |
 | `voice_agent_id` | string | -- | Route voice messages to specific agent |
 
+**Media upload size**: The `media_max_bytes` field enforces a hard limit on outbound media uploads sent by the agent (default 20 MB). Files exceeding this limit are silently skipped with a log entry. This does not affect inbound media received from users.
+
 ## Group Configuration
 
 Override per-group (and per-topic) settings using the `groups` object.
@@ -108,6 +110,10 @@ flowchart TD
     MENTION -->|Yes| PROCESS["Process now<br/>Include history as context"]
     BUFFER --> NEXT["Next mention:<br/>history included"]
 ```
+
+### Group Concurrency
+
+Group sessions support up to **3 concurrent agent runs**. When this limit is reached, additional messages are queued. This applies to all group and forum topic contexts.
 
 ### Forum Topics
 

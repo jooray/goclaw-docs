@@ -74,6 +74,16 @@ Session keys identify unique conversations and threads across platforms. All key
 | DM thread | `agent:{agentId}:{channel}:direct:{peerId}:thread:{threadId}` | `agent:default:telegram:direct:386246614:thread:5` |
 | Subagent | `agent:{agentId}:subagent:{label}` | `agent:default:subagent:my-task` |
 
+## Media Handling Notes
+
+### Media from Replied-to Messages
+
+GoClaw extracts media attachments from the message being replied to across all channels that support replies. When a user replies to a message containing images or files, those attachments are automatically included in the agent's inbound message context — no extra steps required.
+
+### Outbound Media Size Limit
+
+The `media_max_bytes` config field enforces a per-channel limit on outbound media uploads sent by the agent. Files exceeding this limit are skipped with a log entry. Each channel sets its own default (e.g., 20 MB for Telegram, 30 MB for Feishu/Lark). Configure per channel if needed.
+
 ## Channel Comparison
 
 | Feature | Telegram | Discord | Slack | Larksuite | Zalo OA | Zalo Pers | WhatsApp |
@@ -82,7 +92,8 @@ Session keys identify unique conversations and threads across platforms. All key
 | **DM support** | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | **Group support** | Yes | Yes | Yes | Yes | No | Yes | Yes |
 | **Streaming** | Yes (typing) | Yes (edit) | Yes (edit) | Yes (card) | No | No | No |
-| **Media** | Photos, voice, files | Files, embeds | Files (20MB) | Images, files | Images (5MB) | -- | JSON |
+| **Media** | Photos, voice, files | Files, embeds | Files (20MB) | Images, files (30MB) | Images (5MB) | -- | JSON |
+| **Reply media** | Yes | Yes | -- | Yes | -- | -- | -- |
 | **Rich format** | HTML | Markdown | mrkdwn | Cards | Plain text | Plain text | Plain |
 | **Reactions** | Yes | -- | Yes | Yes | -- | -- | -- |
 | **Pairing** | Yes | Yes | Yes | Yes | Yes | Yes | Yes |

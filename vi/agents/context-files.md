@@ -15,7 +15,7 @@ Mỗi agent load các context file xác định cách nó suy nghĩ và hành đ
 | **AGENTS.md** | Hướng dẫn vận hành & phong cách trò chuyện | Dùng chung | Theo user | Cấp agent | Không |
 | **SOUL.md** | Personality, giọng điệu, ranh giới, chuyên môn | Theo user | Theo user | Cấp agent | Không |
 | **IDENTITY.md** | Tên, loại sinh vật, emoji, vibe | Theo user | Theo user | Cấp agent | Không |
-| **TOOLS.md** | Ghi chú tool cục bộ (tên camera, SSH host) | Theo user | Không seeded (load từ workspace lúc runtime) | Cấp agent | Không |
+| **TOOLS.md** | Ghi chú tool cục bộ (tên camera, SSH host) | Theo user | Theo user (load từ workspace; không seeded từ template mặc định) | Cấp agent | Không |
 | **USER.md** | Về người dùng | Theo user | Theo user | Theo user | Không |
 | **USER_PREDEFINED.md** | Quy tắc xử lý user cơ bản | Cấp agent | Không có | Cấp agent | Không |
 | **BOOTSTRAP.md** | Nghi lễ lần đầu (xoá khi hoàn thành) | Theo user | Theo user | Theo user | Có |
@@ -158,7 +158,7 @@ _(Kiến thức chuyên môn đặt ở đây: coding standards, image generatio
 - phone → Personal iPhone 14 Pro
 ```
 
-**Open agent:** Không seeded — nếu bạn tạo `TOOLS.md` trong thư mục workspace, nó sẽ được load tự động lúc runtime.
+**Open agent:** Load từ thư mục workspace per-user lúc runtime. Không được seeded từ template — tạo file thủ công và nó sẽ được load tự động trong lần chạy tiếp theo.
 **Predefined agent:** Cấp agent (ghi chú dùng chung về tool chung)
 
 ### USER.md
@@ -260,6 +260,20 @@ write_file("BOOTSTRAP.md", "")
 
 > **Lưu ý:** Hệ thống tìm `MEMORY.md` trước, sau đó fallback sang `memory.md` (chữ thường). Cả hai tên file đều hoạt động.
 
+> **Đã lỗi thời:** `MEMORY.json` được dùng trong các phiên bản cũ như metadata bộ nhớ đã được index. Nó đã deprecated và thay thế bằng `MEMORY.md`. Nếu bạn có file `MEMORY.json` cũ, hãy chuyển nội dung sang `MEMORY.md`.
+
+## Virtual Context File
+
+Ngoài 7 context file có thể chỉnh sửa, GoClaw inject thêm một số **virtual context file** lúc runtime. Các file này được tạo động từ trạng thái hệ thống — không được lưu trên đĩa và không thể chỉnh sửa thủ công:
+
+| File | Mục đích | Khi nào được inject |
+|------|---------|--------------|
+| **DELEGATION.md** | Context delegation task được truyền từ parent agent sang subagent được spawn | Khi agent được spawn với delegated task |
+| **TEAM.md** | Hướng dẫn team orchestration — lead nhận hướng dẫn đầy đủ; member nhận phiên bản đơn giản hóa về vai trò + workspace | Khi agent thuộc về một team |
+| **AVAILABILITY.md** | Trạng thái và mức độ sẵn sàng của thành viên để phối hợp trong team | Khi team context đang active |
+
+Các file này xuất hiện trong system prompt cùng với context file thông thường nhưng bắt nguồn từ trạng thái runtime, không phải filesystem.
+
 ## Thứ tự load file
 
 Các file được load theo thứ tự này và ghép nối vào system prompt:
@@ -289,7 +303,7 @@ User mới bắt đầu chat với `researcher` (open agent):
    IDENTITY.md → trống (chờ user điền)
    USER.md → trống
    BOOTSTRAP.md → nghi lễ "Who am I?"
-   TOOLS.md → không seeded (tạo thủ công trong workspace nếu cần)
+   TOOLS.md → không seeded từ template (tạo thủ công trong workspace nếu cần; tự động được load nếu có)
    ```
 
 2. Agent khởi đầu cuộc trò chuyện bootstrap:
@@ -360,4 +374,4 @@ Tạo FAQ bot với summoning:
 - [Summoning & Bootstrap](#summoning-bootstrap) — cách SOUL.md và IDENTITY.md được LLM tạo ra
 - [Creating Agents](#creating-agents) — hướng dẫn tạo agent từng bước
 
-<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-18 -->
+<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-23 -->

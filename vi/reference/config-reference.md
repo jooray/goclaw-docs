@@ -159,6 +159,16 @@ Code sandbox dựa trên Docker. Cần Docker và build với sandbox support.
 | `max_age_days` | integer | `7` | Prune container cũ hơn N ngày |
 | `prune_interval_min` | integer | `5` | Khoảng kiểm tra prune (phút) |
 
+### `agents.defaults` — Evolution
+
+Cài đặt evolution của agent lưu trong trường `other_config` JSONB (đặt qua dashboard) thay vì `config.json`. Ghi lại ở đây để tham khảo.
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `self_evolve` | boolean | `false` | Cho phép agent tự viết lại `SOUL.md` của mình (style/tone evolution). Chỉ hoạt động với agent `predefined` có quyền ghi context files cấp agent |
+| `skill_evolve` | boolean | `false` | Bật tool `skill_manage` — agent có thể tạo, patch và xóa skill trong các run |
+| `skill_nudge_interval` | integer | `15` | Số tool call tối thiểu trước khi skill nudge prompt kích hoạt (0 = tắt). Khuyến khích tạo skill sau các run phức tạp |
+
 ### `agents.list`
 
 Per-agent overrides. Tất cả field đều tùy chọn — giá trị zero kế thừa từ `defaults`.
@@ -407,6 +417,14 @@ Mảng MCP server config. Mỗi entry:
 | `dm_scope` | string | `per-channel-peer` | Cô lập session DM: `"main"`, `"per-peer"`, `"per-channel-peer"`, `"per-account-channel-peer"` |
 | `main_key` | string | `main` | Suffix key session chính (dùng khi `dm_scope` là `"main"`) |
 
+### Concurrency queue per-session
+
+Mỗi session chạy qua một per-session queue. Trường `max_concurrent` kiểm soát số agent run có thể chạy đồng thời cho một session (DM hoặc group). Được cấu hình per-agent-link trong DB (qua dashboard) thay vì `config.json`, nhưng giá trị mặc định của `QueueConfig` là:
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `max_concurrent` | integer | `1` | Số run đồng thời tối đa trong session queue (1 = tuần tự, không overlap). Group thường nên xử lý tuần tự; DM có thể đặt cao hơn cho interactive workload |
+
 ---
 
 ## `tts`
@@ -531,6 +549,37 @@ Route channel/user cụ thể đến một agent cụ thể. Mỗi entry:
 
 ---
 
+## Cài đặt Team (JSONB)
+
+Cài đặt team lưu trong `agent_teams.settings` JSONB và được cấu hình qua dashboard, không phải `config.json`. Các field chính:
+
+### `blocker_escalation`
+
+Kiểm soát xem comment `"blocker"` trên team task có kích hoạt tự động fail và escalation lên lead không.
+
+```json
+{
+  "blocker_escalation": {
+    "enabled": true
+  }
+}
+```
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `blocker_escalation.enabled` | boolean | `true` | Khi true, task comment có `comment_type = "blocker"` tự động fail task và escalate lên team lead |
+
+### `escalation_mode`
+
+Kiểm soát cách gửi thông báo escalation lên team lead.
+
+| Field | Type | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `escalation_mode` | string | — | Chế độ gửi event escalation: `"notify"` (đăng vào session của lead) hoặc `""` (im lặng) |
+| `escalation_actions` | string[] | — | Hành động thêm khi escalation (ví dụ `["notify"]`) |
+
+---
+
 ## Ví dụ tối giản hoạt động được
 
 ```json
@@ -563,4 +612,4 @@ Secrets (`GOCLAW_GATEWAY_TOKEN`, `GOCLAW_OPENROUTER_API_KEY`, `GOCLAW_POSTGRES_D
 - [CLI Commands](#cli-commands) — `goclaw onboard` để tạo file này tự động
 - [Database Schema](#database-schema) — agents và providers lưu trong PostgreSQL như thế nào
 
-<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-18 -->
+<!-- goclaw-source: 941a965 | cập nhật: 2026-03-23 -->

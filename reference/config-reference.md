@@ -157,6 +157,16 @@ Docker-based code sandbox. Requires Docker and building with sandbox support.
 | `max_age_days` | integer | `7` | Prune containers older than N days |
 | `prune_interval_min` | integer | `5` | Prune check interval in minutes |
 
+### `agents.defaults` — Evolution
+
+Agent evolution settings are stored in the agent's `other_config` JSONB field (set via the dashboard) rather than `config.json`. They are documented here for completeness.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `self_evolve` | boolean | `false` | Allow the agent to rewrite its own `SOUL.md` (style/tone evolution). Only works for `predefined` agents with write access to agent-level context files |
+| `skill_evolve` | boolean | `false` | Enable the `skill_manage` tool — agent can create, patch, and delete skills during runs |
+| `skill_nudge_interval` | integer | `15` | Minimum tool-call count before the skill nudge prompt fires (0 = disabled). Encourages skill creation after complex runs |
+
 ### `agents.list`
 
 Per-agent overrides. All fields are optional — zero values inherit from `defaults`.
@@ -405,6 +415,14 @@ Array of MCP server configs. Each entry:
 | `dm_scope` | string | `per-channel-peer` | DM session isolation: `"main"`, `"per-peer"`, `"per-channel-peer"`, `"per-account-channel-peer"` |
 | `main_key` | string | `main` | Main session key suffix (used when `dm_scope` is `"main"`) |
 
+### Per-session queue concurrency
+
+Each session runs through a per-session queue. The `max_concurrent` field controls how many agent runs can execute simultaneously for a single session (DM or group). This is configured per-agent-link in the DB (via the dashboard) rather than `config.json`, but the underlying `QueueConfig` default is:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_concurrent` | integer | `1` | Max simultaneous runs per session queue (1 = serial, no overlap). Groups typically benefit from serial processing; DMs can be set higher for interactive workloads |
+
 ---
 
 ## `tts`
@@ -529,6 +547,37 @@ Route specific channels/users to a specific agent. Each entry:
 
 ---
 
+## Team Settings (JSONB)
+
+Team settings are stored in `agent_teams.settings` JSONB and configured via the dashboard, not `config.json`. Key fields:
+
+### `blocker_escalation`
+
+Controls whether `"blocker"` comments on team tasks trigger auto-fail and leader escalation.
+
+```json
+{
+  "blocker_escalation": {
+    "enabled": true
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `blocker_escalation.enabled` | boolean | `true` | When true, a task comment with `comment_type = "blocker"` automatically fails the task and escalates to the team lead |
+
+### `escalation_mode`
+
+Controls how escalation messages are delivered to the team lead.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `escalation_mode` | string | — | Delivery mode for escalation events: `"notify"` (post to lead's session) or `""` (silent) |
+| `escalation_actions` | string[] | — | Additional actions to take on escalation (e.g. `["notify"]`) |
+
+---
+
 ## Minimal Working Example
 
 ```json
@@ -561,4 +610,4 @@ Secrets (`GOCLAW_GATEWAY_TOKEN`, `GOCLAW_OPENROUTER_API_KEY`, `GOCLAW_POSTGRES_D
 - [CLI Commands](#cli-commands) — `goclaw onboard` to generate this file interactively
 - [Database Schema](#database-schema) — how agents and providers are stored in PostgreSQL
 
-<!-- goclaw-source: 57754a5 | updated: 2026-03-18 -->
+<!-- goclaw-source: 941a965 | updated: 2026-03-23 -->

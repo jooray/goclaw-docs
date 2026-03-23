@@ -9,7 +9,7 @@ A GoClaw upgrade has two parts:
 1. **SQL migrations** — schema changes applied by `golang-migrate` (idempotent, versioned)
 2. **Data hooks** — optional Go-based data transformations that run after schema migrations (e.g. backfilling a new column)
 
-The `./goclaw upgrade` command handles both in the correct order. It is safe to run multiple times — it is fully idempotent. The current required schema version is **23**.
+The `./goclaw upgrade` command handles both in the correct order. It is safe to run multiple times — it is fully idempotent. The current required schema version is **28**.
 
 ```mermaid
 graph LR
@@ -208,10 +208,31 @@ Only do this if you understand what the failed migration was doing. When in doub
 
 ## Recent Migrations
 
+### v2.x Migrations (024–028)
+
+These five migrations are auto-applied on startup when upgrading to v2.x. No manual steps are needed for standard upgrades — run `./goclaw upgrade` as usual. Manual migration is only required for major version jumps where a backup-and-restore approach is recommended.
+
 | Version | What changed |
 |---------|-------------|
 | 022 | Creates `agent_heartbeats` and `heartbeat_run_logs` tables for heartbeat monitoring; adds `agent_config_permissions` generic permission table (replaces `group_file_writers`) |
 | 023 | Adds agent hard-delete support (cascade FK constraints on sessions, cron_jobs, delegation_history, team tables; unique index on active agents only); merges `group_file_writers` into `agent_config_permissions` and drops the old table |
+| 024 | Team attachments refactor — drops old workspace file tables and `team_messages`; new path-based `team_task_attachments` table; adds denormalized count columns and semantic embedding on `team_tasks` |
+| 025 | Adds `embedding vector(1536)` to `kg_entities` for semantic knowledge graph entity search |
+| 026 | Binds API keys to specific users via `owner_id` column; adds `team_user_grants` access control table; drops legacy `handoff_routes` and `delegation_history` tables |
+| 027 | Tenant foundation — adds `tenants`, `tenant_users`, and per-tenant config tables; backfills `tenant_id` on 40+ tables with master tenant UUID; updates unique constraints to be tenant-scoped |
+| 028 | Adds `comment_type` to `team_task_comments` for blocker escalation support |
+
+### Breaking Changes in v2.x
+
+- **`delegation_history` table dropped** (migration 026): delegation history is no longer stored in the DB. Any code or tooling querying this table will fail. The delegation result is available in the agent tool response instead.
+- **`team_messages` table dropped** (migration 024): peer-to-peer team mailbox has been removed. Team communication now uses task comments.
+- **`custom_tools` table dropped** (migration 027): custom tools via DB were dead code — the agent loop never wired them. Use `config.json` `tools.mcp_servers` instead.
+- **Tenant-scoped unique constraints**: unique indexes on `agents.agent_key`, `sessions.session_key`, `mcp_servers.name`, etc. now include `tenant_id`. This is transparent for single-tenant deployments (all rows default to master tenant).
+- **API key user binding**: API keys with `owner_id` set now force `user_id = owner_id` during authentication. Existing keys without `owner_id` are unaffected.
+
+### Automatic Version Checker
+
+GoClaw v2.x includes an automatic version checker. After startup, the gateway polls GitHub releases in the background and shows a notification banner in the dashboard when a newer version is available. No configuration is needed — the check runs automatically and requires outbound HTTPS to `api.github.com`. The check runs periodically while the gateway is running; the result is cached and served to dashboard clients.
 
 For the full schema history see [Database Schema → Migration History](#database-schema).
 
@@ -252,4 +273,4 @@ Before each upgrade, check the release notes for:
 - [Database Setup](#deploy-database) — PostgreSQL and pgvector setup
 - [Observability](#deploy-observability) — monitor your gateway post-upgrade
 
-<!-- goclaw-source: 941a965 | updated: 2026-03-19 -->
+<!-- goclaw-source: 941a965 | updated: 2026-03-23 -->

@@ -959,6 +959,11 @@ Generic permission table for agent configuration (heartbeat, cron, file writers,
 | 21 | `expires_at` on paired_devices; `confidence_score` on team_tasks, team_messages, team_task_comments |
 | 22 | `agent_heartbeats` and `heartbeat_run_logs` tables for heartbeat monitoring; `agent_config_permissions` generic permission table |
 | 23 | Agent hard-delete support (cascade FK constraints, unique index on active agents); merges `group_file_writers` into `agent_config_permissions` |
+| 24 | Team attachments refactor — drops `team_workspace_files`, `team_workspace_file_versions`, `team_workspace_comments`, and `team_messages`; adds new path-based `team_task_attachments` table linked to tasks; adds `comment_count` and `attachment_count` denormalized columns on `team_tasks`; adds `embedding vector(1536)` on `team_tasks` for semantic task search |
+| 25 | Adds `embedding vector(1536)` column and HNSW index to `kg_entities` for pgvector-backed semantic entity search |
+| 26 | Adds `owner_id VARCHAR(255)` to `api_keys` — when set, authenticating via this key forces `user_id = owner_id` (user-bound API key); adds `team_user_grants` table for team-level access control; drops legacy `handoff_routes` and `delegation_history` tables |
+| 27 | Tenant foundation — creates `tenants` and `tenant_users` tables; seeds master tenant (`0193a5b0-7000-7000-8000-000000000001`); adds `tenant_id` column to 40+ tables for multi-tenant isolation; drops global unique constraints and replaces with per-tenant composite indexes; adds `builtin_tool_tenant_configs`, `skill_tenant_configs`, and `mcp_user_credentials` tables; drops `custom_tools` table (dead code); migrates remaining UUID v4 defaults to v7 |
+| 28 | Adds `comment_type VARCHAR(20) DEFAULT 'note'` to `team_task_comments` — supports `"blocker"` type that triggers task auto-fail and leader escalation |
 
 ---
 
@@ -968,4 +973,4 @@ Generic permission table for agent configuration (heartbeat, cron, file writers,
 - [Config Reference](#config-reference) — how database config maps to `config.json`
 - [Glossary](#glossary) — Session, Compaction, Lane, and other key terms
 
-<!-- goclaw-source: 941a965 | updated: 2026-03-19 -->
+<!-- goclaw-source: 941a965 | updated: 2026-03-23 -->

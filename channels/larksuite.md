@@ -153,6 +153,8 @@ Max 30 MB by default (`media_max_mb`).
 
 **Outbound**: Files auto-detected and uploaded with correct type (opus, mp4, pdf, doc, xls, ppt, or stream).
 
+**Rich post messages**: GoClaw also extracts images embedded in Lark rich-text `post` messages (not only standalone image messages). Images within a post body are downloaded and included alongside other media in the inbound message context.
+
 ### @Mention Support
 
 The bot sends native Lark @mentions in group messages. When the agent response contains `@open_id` patterns (e.g. `@ou_abc123`), they are automatically converted to native Lark `at` elements that trigger real notifications to the mentioned user. This works in both `post` text messages and interactive card messages.

@@ -88,7 +88,7 @@ Protects against dangerous command execution, unauthorized file access, and serv
 | 2 | `data_exfiltration` | `curl \| sh`, localhost access, DNS queries |
 | 3 | `reverse_shell` | `nc -e`, `socat`, Python/Node socket |
 | 4 | `code_injection` | `eval $()`, `base64 -d \| sh` |
-| 5 | `privilege_escalation` | `sudo`, `su -`, `nsenter`, `mount`, `setcap` |
+| 5 | `privilege_escalation` | `sudo`, `su -`, `nsenter`, `mount`, `setcap`, `halt`, `doas`, `pkexec`, `runuser` |
 | 6 | `dangerous_paths` | `chmod`/`chown` on `/` paths |
 | 7 | `env_injection` | `LD_PRELOAD=`, `DYLD_INSERT_LIBRARIES=` |
 | 8 | `container_escape` | `docker.sock`, `/proc/sys/`, `/sys/kernel/` |
@@ -154,6 +154,10 @@ Shell metacharacters (`;`, `|`, `&`, `$()`, backticks) are detected and rejected
 ### Shell output limit
 
 Host-executed commands have stdout and stderr capped at **1 MB** each. If a command exceeds this limit, output is truncated with a flag to prevent further writes. Sandboxed execution uses Docker container limits instead.
+
+### XML parsing (XXE prevention)
+
+GoClaw replaced the stdlib `xml.etree.ElementTree` XML parser with `defusedxml` in all XML processing paths. `defusedxml` blocks XML eXternal Entity (XXE) attacks — where a crafted XML payload references external entities to read local files or trigger SSRF. This applies to any agent tool or skill that parses XML input.
 
 ### Exec approval
 
@@ -471,4 +475,4 @@ journalctl -u goclaw | grep 'security\.'
 - [Docker Compose](./docker-compose.md) — deploying with security settings via compose overlays
 - [Database Setup](./database-setup.md) — PostgreSQL TLS and encrypted secret storage
 
-<!-- goclaw-source: 941a965 | updated: 2026-03-19 -->
+<!-- goclaw-source: 941a965 | updated: 2026-03-23 -->

@@ -82,6 +82,10 @@ While the agent processes, a typing indicator is shown (9-second keepalive).
 
 The bot automatically detects and responds in Discord threads. Responses stay in the same thread.
 
+### Media from Replied-to Messages
+
+When a user replies to a message that contains media attachments, GoClaw extracts those attachments and includes them in the inbound message context. This lets the agent see and process media even when it was originally shared in a previous turn.
+
 ### Group Media History
 
 Media files (images, video, audio) sent in group conversations are tracked in message history, allowing agents to reference previously shared media.
@@ -89,6 +93,18 @@ Media files (images, video, audio) sent in group conversations are tracked in me
 ### Bot Identity
 
 On startup, the bot fetches its own user ID via `@me` endpoint to avoid responding to its own messages.
+
+### Group File Writer Management
+
+Discord supports slash-command-based management of group file writers (similar to Telegram's writer restriction). In server channels, write-sensitive operations can be restricted to designated writers:
+
+| Command | Description |
+|---------|-------------|
+| `/addwriter` | Add a group file writer (reply to target user) |
+| `/removewriter` | Remove a group file writer |
+| `/writers` | List current group file writers |
+
+Writers are managed per-group. The group ID format used internally is `group:discord:{channelID}`.
 
 ## Common Patterns
 

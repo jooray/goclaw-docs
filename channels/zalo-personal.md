@@ -94,6 +94,8 @@ Explicitly allow users/groups via `allow_from`:
 
 Requires credentials file with phone, password, and device ID. On first connection, account may require QR scan or additional verification from Zalo.
 
+**QR re-authentication**: When re-authenticating via QR scan (e.g., after session expiry), GoClaw safely cancels the previous session before starting a new QR flow. This race-safe cancel prevents duplicate sessions from running simultaneously and avoids conflicting login attempts.
+
 ### Media Handling
 
 Media sending includes post-write verification — files are confirmed written to disk before being sent to the Zalo API.

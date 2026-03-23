@@ -144,6 +144,29 @@ Agent có thể ở một trong bốn trạng thái:
 
 Predefined agent với `self_evolve` được bật có thể tự cập nhật `SOUL.md` trong quá trình hội thoại. Điều này cho phép giọng điệu và phong cách của agent tiến hóa theo thời gian dựa trên các tương tác. Cập nhật được áp dụng ở cấp agent và ảnh hưởng đến tất cả người dùng. Các file chung khác (IDENTITY.md, AGENTS.md) vẫn được bảo vệ và chỉ có thể chỉnh sửa từ dashboard.
 
+## Chế độ System Prompt
+
+GoClaw xây dựng system prompt theo hai chế độ:
+
+- **PromptFull** — dùng cho lần chạy agent chính. Bao gồm tất cả 19+ phần: skills, MCP tools, memory recall, user identity, messaging, silent-reply rules, và đầy đủ context file.
+- **PromptMinimal** — dùng cho subagent (spawn qua tool `spawn`) và cron job. Context thu gọn chỉ gồm các phần cần thiết (tooling, safety, workspace, bootstrap file). Giảm thời gian khởi động và token cho các thao tác nhẹ.
+
+## NO_REPLY Suppression
+
+Agent có thể trả về `NO_REPLY` trong phản hồi cuối để ngăn gửi tin nhắn hiển thị cho người dùng. GoClaw phát hiện chuỗi này trong quá trình finalizing và bỏ qua việc gửi tin hoàn toàn — gọi là "silent completion." Được dùng nội bộ bởi memory flush agent khi không có gì để lưu, và có thể dùng trong hướng dẫn agent tuỳ chỉnh cho các tình huống tương tự.
+
+## Mid-Loop Compaction
+
+Trong các task chạy dài, GoClaw kích hoạt context compaction **ngay giữa vòng lặp** — không chỉ sau khi run hoàn tất. Khi prompt token vượt 75% context window (cấu hình qua `MaxHistoryShare`), agent tóm tắt ~70% đầu tiên của các message trong bộ nhớ, giữ lại ~30% cuối, rồi tiếp tục lặp. Điều này ngăn tràn context mà không cần hủy task hiện tại.
+
+## Tự động tóm tắt và Memory Flush
+
+Sau mỗi lần chạy, GoClaw đánh giá có cần compact session history không:
+
+- **Trigger**: history vượt 50 message HOẶC token ước tính vượt 75% context window
+- **Memory flush trước** (đồng bộ): agent ghi thông tin quan trọng vào file `memory/YYYY-MM-DD.md` trước khi lịch sử bị truncate
+- **Tóm tắt** (background): LLM tóm tắt các message cũ; history được truncate còn 4 message cuối; bản tóm tắt được lưu cho session tiếp theo
+
 ## Neo danh tính (Identity Anchoring)
 
 Predefined agent có cơ chế bảo vệ tích hợp chống lại social engineering. Nếu người dùng cố thuyết phục agent bỏ qua SOUL.md hoặc hành động ngoài danh tính đã định nghĩa, agent được thiết kế để kháng cự. Các file danh tính chung được inject vào system prompt ở mức ưu tiên cao hơn hướng dẫn của người dùng.
@@ -154,4 +177,4 @@ Predefined agent có cơ chế bảo vệ tích hợp chống lại social engin
 - [Tools Overview](#tools-overview) — Tool agent có thể dùng
 - [Memory System](#memory-system) — Memory dài hạn và tìm kiếm
 
-<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-18 -->
+<!-- goclaw-source: 57754a5 | cập nhật: 2026-03-23 -->

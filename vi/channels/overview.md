@@ -76,6 +76,16 @@ Session key xác định cuộc trò chuyện và luồng duy nhất trên các 
 | DM thread | `agent:{agentId}:{channel}:direct:{peerId}:thread:{threadId}` | `agent:default:telegram:direct:386246614:thread:5` |
 | Subagent | `agent:{agentId}:subagent:{label}` | `agent:default:subagent:my-task` |
 
+## Ghi chú xử lý Media
+
+### Media từ tin nhắn được reply
+
+GoClaw trích xuất file đính kèm media từ tin nhắn đang được reply trên tất cả các channel có hỗ trợ reply. Khi user reply vào tin nhắn chứa hình ảnh hoặc file, các file đó được tự động đưa vào context tin nhắn đến của agent — không cần thêm bước nào.
+
+### Giới hạn kích thước Media gửi ra
+
+Trường config `media_max_bytes` áp đặt giới hạn kích thước upload media ra ngoài do agent gửi, theo từng channel. File vượt giới hạn sẽ bị bỏ qua và ghi log. Mỗi channel có giá trị mặc định riêng (ví dụ: 20 MB cho Telegram, 30 MB cho Feishu/Lark). Cấu hình theo từng channel nếu cần.
+
 ## So sánh Channel
 
 | Tính năng | Telegram | Discord | Larksuite | Zalo OA | Zalo Pers | WhatsApp |
@@ -84,7 +94,8 @@ Session key xác định cuộc trò chuyện và luồng duy nhất trên các 
 | **Hỗ trợ DM** | Có | Có | Có | Có | Có | Có |
 | **Hỗ trợ nhóm** | Có | Có | Có | Không | Có | Có |
 | **Streaming** | Có (typing) | Có (edit) | Có (card) | Không | Không | Không |
-| **Media** | Photos, voice, files | Files, embeds | Images, files | Images (5MB) | -- | JSON |
+| **Media** | Photos, voice, files | Files, embeds | Images, files (30MB) | Images (5MB) | -- | JSON |
+| **Reply media** | Có | Có | Có | -- | -- | -- |
 | **Định dạng phong phú** | HTML | Markdown | Cards | Plain text | Plain text | Plain |
 | **Reaction** | Có | -- | Có | -- | -- | -- |
 | **Pairing** | Có | Có | Có | Có | Có | Có |

@@ -33,7 +33,8 @@ Two **prompt modes** exist:
 | 10 | Additional Context | ✓ | ✓ | ExtraPrompt (subagent context, etc.) |
 | 11 | Project Context | ✓ | ✓ | Remaining context files (AGENTS.md, USER.md, etc.) |
 | 12 | Silent Replies | ✓ | ✗ | NO_REPLY instruction |
-| 13 | Sub-Agent Spawning | ✓ | ✓ | spawn tool guidance |
+| 13 | Sub-Agent Spawning | ✓ | ✓ | spawn tool guidance (skipped for team agents with TEAM.md) |
+| 13.5 | Team Workspace | ✓ | ✓ | TEAM.md dynamically injected for team agents |
 | 15 | Runtime | ✓ | ✓ | Agent ID, channel info |
 | 16 | Recency Reinforcements | ✓ | ✓ | Persona reminder + memory reminder at end (combats "lost in the middle") |
 
@@ -99,6 +100,8 @@ When the full prompt exceeds the budget, GoClaw truncates in this order (least i
 
 This ensures safety, tooling, and workspace guidance are never cut.
 
+> **Note:** Safety, tooling, and workspace guidance sections are never truncated regardless of budget pressure.
+
 ## Building the Prompt (Simplified Flow)
 
 ```
@@ -124,7 +127,8 @@ Add sections in order:
 10.  Additional Context (extra prompt)
 11.  Project Context (remaining context files: AGENTS.md, USER.md, etc.)
 12.  Silent Replies (if full mode)
-13.  Sub-Agent Spawning (if spawn tool available)
+13.  Sub-Agent Spawning (if spawn tool available and not a team agent)
+13.5 Team Workspace / TEAM.md (dynamically injected for team agents)
 15.  Runtime (agent ID, channel info)
 16.  Recency Reinforcements (persona reminder + memory reminder — combat "lost in the middle")
 
@@ -149,6 +153,19 @@ GoClaw loads up to 8 files from the agent's workspace or database. They are spli
 4. **BOOTSTRAP.md** — First-run instructions (users being onboarded)
 5. **TOOLS.md** — User guidance on tool usage (informational, not tool definitions)
 6. **MEMORY.json** — Indexed memory metadata
+
+### TEAM.md — Dynamically Injected for Team Agents
+
+When an agent belongs to a team, a `TEAM.md` context is dynamically generated and injected as section 13.5 (Team Workspace). This file is not stored on disk — it is assembled at runtime from team configuration:
+
+- **Lead agents** receive full orchestration instructions: how to dispatch tasks, manage members, and coordinate work.
+- **Member agents** receive a simplified version: their role, the team workspace path, and communication protocol.
+
+When TEAM.md is present, the Sub-Agent Spawning section (13) is skipped, since team orchestration replaces individual spawn guidance.
+
+### User Identity — Section 7
+
+Section 7 (User Identity) is injected in Full mode only. It contains the owner ID(s) for the current session, used by the agent for permission checks — for example, verifying that a command came from the agent's owner before performing sensitive operations.
 
 ### File Presence Logic
 
@@ -363,4 +380,4 @@ This agent will:
 - [Context Files — Add project-specific context](#context-files)
 - [Creating Agents — Set up system prompt configuration](#creating-agents)
 
-<!-- goclaw-source: 120fc2d | updated: 2026-03-18 -->
+<!-- goclaw-source: 120fc2d | updated: 2026-03-23 -->

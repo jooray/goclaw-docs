@@ -84,6 +84,10 @@ Trong khi agent xử lý, typing indicator được hiển thị (keepalive 9 gi
 
 Bot tự động phát hiện và phản hồi trong Discord thread. Phản hồi ở lại trong cùng thread.
 
+### Media từ tin nhắn được reply
+
+Khi user reply vào một tin nhắn chứa file đính kèm media, GoClaw trích xuất các file đó và đưa vào context của tin nhắn đến. Agent có thể thấy và xử lý media ngay cả khi nó được chia sẻ ở lượt trước.
+
 ### Lịch sử Media Nhóm
 
 Các file media (hình ảnh, video, âm thanh) được gửi trong cuộc trò chuyện nhóm được theo dõi trong lịch sử tin nhắn, cho phép agent tham chiếu đến media đã chia sẻ trước đó.
@@ -91,6 +95,18 @@ Các file media (hình ảnh, video, âm thanh) được gửi trong cuộc trò
 ### Định danh Bot
 
 Khi khởi động, bot lấy user ID của chính mình qua endpoint `@me` để tránh phản hồi tin nhắn của chính mình.
+
+### Quản lý Group File Writer
+
+Discord hỗ trợ quản lý group file writer qua slash command (tương tự giới hạn writer của Telegram). Trong server channel, các thao tác nhạy cảm với file có thể được giới hạn cho các writer được chỉ định:
+
+| Lệnh | Mô tả |
+|---------|-------------|
+| `/addwriter` | Thêm group file writer (reply vào user mục tiêu) |
+| `/removewriter` | Xoá group file writer |
+| `/writers` | Liệt kê các group file writer hiện tại |
+
+Writer được quản lý theo từng nhóm. Định dạng group ID nội bộ là `group:discord:{channelID}`.
 
 ## Pattern phổ biến
 

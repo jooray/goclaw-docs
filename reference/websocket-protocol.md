@@ -12,6 +12,18 @@ GoClaw exposes a WebSocket endpoint at `/ws`. All client-gateway communication u
 
 ---
 
+## Connection Limits
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Read limit | 512 KB | Connection auto-closed if a single message exceeds this |
+| Send buffer | 256 messages | Messages dropped when the buffer is full |
+| Read deadline | 60 s | Reset on each message or pong; triggers disconnect on timeout |
+| Write deadline | 10 s | Per-write timeout for individual frames |
+| Ping interval | 30 s | Server-initiated keepalive pings |
+
+---
+
 ## Frame Types
 
 ### Request Frame (`req`)
@@ -123,6 +135,8 @@ The first request must be `connect`. The gateway rejects any other method until 
 
 A wrong protocol version or invalid token returns `ok: false` immediately.
 
+**`user_id` requirement:** The `user_id` parameter in `connect` is required for per-user session scoping. It is an opaque VARCHAR(255). For multi-tenant deployments, use the compound format `tenant.{tenantId}.user.{userId}` — GoClaw uses identity propagation and trusts the upstream service to supply the correct identity.
+
 ---
 
 ## RPC Methods
@@ -134,6 +148,7 @@ A wrong protocol version or invalid token returns `ok: false` immediately.
 | `connect` | `{token, protocol}` | Authenticate. Must be first request |
 | `health` | — | Ping / health check |
 | `status` | — | Gateway status |
+| `providers.models` | — | List available models from all configured LLM providers |
 
 ### Chat
 
@@ -149,6 +164,7 @@ A wrong protocol version or invalid token returns `ok: false` immediately.
 | Method | Params | Description |
 |--------|--------|-------------|
 | `agents.list` | — | List all agents |
+| `agent.wait` | `{agentId}` | Wait for agent to finish current run |
 | `agents.create` | agent object | Create an agent |
 | `agents.update` | `{id, ...fields}` | Update an agent |
 | `agents.delete` | `{id}` | Delete an agent |
@@ -228,14 +244,34 @@ A wrong protocol version or invalid token returns `ok: false` immediately.
 | `exec.approval.approve` | Approve a command |
 | `exec.approval.deny` | Deny a command |
 
-### Agent Links & Teams
+### Teams
 
 | Method | Description |
 |--------|-------------|
-| `agents.links.list/create/update/delete` | Manage inter-agent delegation links |
-| `teams.list/create/get/update/delete` | Team CRUD |
-| `teams.tasks.list` | List team tasks |
-| `teams.members.add/remove` | Manage team membership |
+| `teams.list` | List all teams |
+| `teams.create` | Create team (admin only) |
+| `teams.get` | Get team with members |
+| `teams.update` | Update team properties |
+| `teams.delete` | Delete team |
+| `teams.members.add` | Add agent to team |
+| `teams.members.remove` | Remove agent from team |
+| `teams.tasks.list` | List team tasks (filterable) |
+| `teams.tasks.get` | Get task with comments/events |
+| `teams.tasks.create` | Create task |
+| `teams.tasks.claim` | Claim task (mark as in-progress) |
+| `teams.tasks.assign` | Assign task to member |
+| `teams.tasks.approve` | Approve completed task |
+| `teams.tasks.reject` | Reject task submission |
+| `teams.tasks.comment` | Add comment to task |
+| `teams.tasks.comments` | List task comments |
+| `teams.tasks.events` | List task event history |
+| `teams.tasks.delete` | Delete task |
+| `teams.workspace.list` | List team workspace files |
+| `teams.workspace.read` | Read workspace file |
+| `teams.workspace.delete` | Delete workspace file |
+| `teams.events.list` | List team event history (paginated) |
+| `teams.known_users` | Get known user IDs in team |
+| `teams.scopes` | Get channel/chat scopes for task routing |
 
 ### Usage & Quota
 
@@ -244,6 +280,12 @@ A wrong protocol version or invalid token returns `ok: false` immediately.
 | `usage.get` | Token usage stats |
 | `usage.summary` | Usage summary cards |
 | `quota.usage` | Quota consumption for current user |
+
+### Logs
+
+| Method | Params | Description |
+|--------|--------|-------------|
+| `logs.tail` | `{action: "start"\|"stop", level?}` | Start or stop live log streaming; log entries arrive as server-push events while active |
 
 ---
 
@@ -292,6 +334,7 @@ Emitted during agent runs. Check `payload.type`:
 | `team.message.sent` | Peer-to-peer message in team |
 | `team.created/updated/deleted` | Team CRUD notifications |
 | `team.member.added/removed` | Team membership changes |
+| `activity` | Activity audit log entry recorded |
 
 ---
 
@@ -335,4 +378,4 @@ ws.onmessage = (e) => {
 - [CLI Commands](#cli-commands) — pairing and session management from the terminal
 - [Glossary](#glossary) — Session, Lane, Compaction, and other key terms
 
-<!-- goclaw-source: 57754a5 | updated: 2026-03-18 -->
+<!-- goclaw-source: 57754a5 | updated: 2026-03-23 -->

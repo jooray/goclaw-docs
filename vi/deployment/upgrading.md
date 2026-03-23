@@ -11,7 +11,7 @@ Một lần upgrade GoClaw có hai phần:
 1. **SQL migrations** — thay đổi schema áp dụng bởi `golang-migrate` (idempotent, có phiên bản)
 2. **Data hooks** — Go-based data transformation tùy chọn chạy sau schema migrations (ví dụ backfill cột mới)
 
-Lệnh `./goclaw upgrade` xử lý cả hai theo đúng thứ tự. An toàn khi chạy nhiều lần — hoàn toàn idempotent. Phiên bản schema hiện tại yêu cầu là **23**.
+Lệnh `./goclaw upgrade` xử lý cả hai theo đúng thứ tự. An toàn khi chạy nhiều lần — hoàn toàn idempotent. Phiên bản schema hiện tại yêu cầu là **28**.
 
 ```mermaid
 graph LR
@@ -210,10 +210,31 @@ Chỉ làm điều này nếu bạn hiểu migration lỗi đã làm gì. Khi kh
 
 ## Migration gần đây
 
+### Migration v2.x (024–028)
+
+Năm migration này được tự động áp dụng khi khởi động khi nâng cấp lên v2.x. Không cần bước thủ công cho upgrade thông thường — chạy `./goclaw upgrade` như bình thường. Chỉ cần migration thủ công cho các bước nhảy phiên bản lớn nơi nên backup-and-restore.
+
 | Phiên bản | Thay đổi |
 |-----------|----------|
 | 022 | Tạo bảng `agent_heartbeats` và `heartbeat_run_logs` cho heartbeat monitoring; thêm bảng permission tổng quát `agent_config_permissions` (thay thế `group_file_writers`) |
 | 023 | Hỗ trợ hard-delete agent (FK constraint cascade trên sessions, cron_jobs, delegation_history, bảng team; unique index chỉ trên agent đang active); chuyển `group_file_writers` vào `agent_config_permissions` và xóa bảng cũ |
+| 024 | Tái cấu trúc team attachments — xóa bảng workspace files cũ và `team_messages`; bảng `team_task_attachments` mới dựa trên path; thêm cột count denormalized và semantic embedding trên `team_tasks` |
+| 025 | Thêm `embedding vector(1536)` vào `kg_entities` cho semantic knowledge graph entity search |
+| 026 | Gắn API key với user cụ thể qua cột `owner_id`; thêm bảng kiểm soát truy cập `team_user_grants`; xóa bảng `handoff_routes` và `delegation_history` cũ |
+| 027 | Tenant foundation — thêm bảng `tenants`, `tenant_users` và các bảng config per-tenant; backfill `tenant_id` vào 40+ bảng với master tenant UUID; cập nhật unique constraint theo tenant |
+| 028 | Thêm `comment_type` vào `team_task_comments` cho blocker escalation support |
+
+### Breaking Changes trong v2.x
+
+- **Bảng `delegation_history` bị xóa** (migration 026): lịch sử delegation không còn lưu trong DB. Bất kỳ code hoặc tooling nào query bảng này sẽ lỗi. Kết quả delegation có trong response của agent tool.
+- **Bảng `team_messages` bị xóa** (migration 024): mailbox peer-to-peer của team đã bị xóa. Giao tiếp team giờ dùng task comments.
+- **Bảng `custom_tools` bị xóa** (migration 027): custom tools qua DB là dead code — agent loop không bao giờ kết nối chúng. Dùng `config.json` `tools.mcp_servers` thay thế.
+- **Unique constraint theo tenant**: unique index trên `agents.agent_key`, `sessions.session_key`, `mcp_servers.name`, v.v. giờ bao gồm `tenant_id`. Transparent cho single-tenant deployment (tất cả row mặc định về master tenant).
+- **API key user binding**: API key có `owner_id` đặt giờ ép `user_id = owner_id` khi xác thực. Các key cũ không có `owner_id` không bị ảnh hưởng.
+
+### Kiểm tra phiên bản tự động
+
+GoClaw v2.x tích hợp tính năng kiểm tra phiên bản tự động. Sau khi khởi động, gateway định kỳ poll GitHub releases ở nền và hiển thị thông báo trên dashboard khi có phiên bản mới hơn. Không cần cấu hình — tính năng chạy tự động và cần HTTPS ra ngoài đến `api.github.com`.
 
 Xem toàn bộ lịch sử schema tại [Database Schema → Lịch sử Migration](#database-schema).
 
@@ -254,4 +275,4 @@ Trước mỗi lần upgrade, kiểm tra release notes về:
 - [Database Setup](#deploy-database) — cài đặt PostgreSQL và pgvector
 - [Observability](#deploy-observability) — theo dõi gateway sau khi upgrade
 
-<!-- goclaw-source: 941a965 | cập nhật: 2026-03-19 -->
+<!-- goclaw-source: 941a965 | cập nhật: 2026-03-23 -->

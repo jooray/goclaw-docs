@@ -13,7 +13,7 @@ Each agent loads context files that define how it thinks and acts. These files a
 | **AGENTS.md** | Operating instructions & conversational style | Shared | Per-user | Agent-level | No |
 | **SOUL.md** | Personality, tone, boundaries, expertise | Per-user | Per-user | Agent-level | No |
 | **IDENTITY.md** | Name, creature, emoji, vibe | Per-user | Per-user | Agent-level | No |
-| **TOOLS.md** | Local tool notes (camera names, SSH hosts) | Per-user | Not seeded (loaded from workspace at runtime) | Agent-level | No |
+| **TOOLS.md** | Local tool notes (camera names, SSH hosts) | Per-user | Per-user (loaded from workspace; not template-seeded by default) | Agent-level | No |
 | **USER.md** | About the human user | Per-user | Per-user | Per-user | No |
 | **USER_PREDEFINED.md** | Baseline user-handling rules | Agent-level | N/A | Agent-level | No |
 | **BOOTSTRAP.md** | First-run ritual (deleted when complete) | Per-user | Per-user | Per-user | Yes |
@@ -156,7 +156,7 @@ _(Domain-specific knowledge goes here: coding standards, image generation techni
 - phone → Personal iPhone 14 Pro
 ```
 
-**Open agent:** Not seeded — if you create a `TOOLS.md` in your workspace directory, it is loaded at runtime automatically.
+**Open agent:** Loaded from the per-user workspace directory at runtime. Not template-seeded — create the file manually and it will be picked up automatically on the next run.
 **Predefined agent:** Agent-level (shared notes about common tools)
 
 ### USER.md
@@ -258,6 +258,20 @@ write_file("BOOTSTRAP.md", "")
 
 > **Note:** The system looks for `MEMORY.md` first, then falls back to `memory.md` (lowercase). Both filenames work.
 
+> **Deprecated:** `MEMORY.json` was used in earlier versions as indexed memory metadata. It is deprecated in favor of `MEMORY.md`. If you have old `MEMORY.json` files, migrate content to `MEMORY.md`.
+
+## Virtual Context Files
+
+In addition to the 7 editable context files, GoClaw injects several **virtual context files** at runtime. These are dynamically generated from system state — they are never stored on disk and cannot be manually edited:
+
+| File | Purpose | When injected |
+|------|---------|--------------|
+| **DELEGATION.md** | Task delegation context passed from a parent agent to a spawned subagent | When agent is spawned with a delegated task |
+| **TEAM.md** | Team orchestration instructions — lead gets full orchestration guide; members get simplified role + workspace info | When agent belongs to a team |
+| **AVAILABILITY.md** | Member availability and status for team coordination | When team context is active |
+
+These files appear in the system prompt alongside regular context files but originate from runtime state, not the filesystem.
+
 ## File Loading Order
 
 Files are loaded in this order and concatenated into the system prompt:
@@ -287,7 +301,7 @@ New user starts a chat with `researcher` (open agent):
    IDENTITY.md → blank (ready for user input)
    USER.md → blank
    BOOTSTRAP.md → "Who am I?" ritual
-   TOOLS.md → not seeded (create manually in workspace if needed)
+   TOOLS.md → not template-seeded (create manually in workspace if needed; loaded automatically if present)
    ```
 
 2. Agent initiates bootstrap conversation:
@@ -358,4 +372,4 @@ FAQ bot creation with summoning:
 - [Summoning & Bootstrap](#summoning-bootstrap) — how SOUL.md and IDENTITY.md are LLM-generated
 - [Creating Agents](#creating-agents) — step-by-step agent creation
 
-<!-- goclaw-source: 57754a5 | updated: 2026-03-18 -->
+<!-- goclaw-source: 57754a5 | updated: 2026-03-23 -->

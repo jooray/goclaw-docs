@@ -142,6 +142,29 @@ An agent can be in one of four states:
 
 Predefined agents with `self_evolve` enabled can update their own `SOUL.md` during conversations. This allows the agent's tone and style to evolve over time based on interactions. The update is applied at the agent level and affects all users. Other shared files (IDENTITY.md, AGENTS.md) remain protected and can only be edited from the dashboard.
 
+## System Prompt Modes
+
+GoClaw builds the system prompt in two modes:
+
+- **PromptFull** — used for main agent runs. Includes all 19+ sections: skills, MCP tools, memory recall, user identity, messaging, silent-reply rules, and full context files.
+- **PromptMinimal** — used for subagents (spawned via `spawn` tool) and cron jobs. Stripped-down context with only the essential sections (tooling, safety, workspace, bootstrap files). Reduces startup time and token usage for lightweight operations.
+
+## NO_REPLY Suppression
+
+Agents can signal `NO_REPLY` in their final response to suppress sending a visible reply to the user. GoClaw detects this string during response finalization and skips message delivery entirely — a "silent completion." This is used internally by the memory flush agent when it has nothing to store, and can be used in custom agent instructions for similar silent-operation scenarios.
+
+## Mid-Loop Compaction
+
+During long-running tasks, GoClaw triggers context compaction **mid-loop** — not just after a run completes. When prompt tokens exceed 75% of the context window (configurable via `MaxHistoryShare`), the agent summarizes the first ~70% of in-memory messages, keeping the last ~30%, then continues iterating. This prevents context overflow without aborting the current task.
+
+## Auto-Summarization and Memory Flush
+
+After each conversation run, GoClaw evaluates whether to compact session history:
+
+- **Trigger**: history exceeds 50 messages OR estimated tokens exceed 75% of context window
+- **Memory flush first** (synchronous): agent writes important facts to `memory/YYYY-MM-DD.md` files before history is truncated
+- **Summarize** (background): LLM summarizes older messages; history is truncated to the last 4 messages; summary is saved for the next session
+
 ## Identity Anchoring
 
 Predefined agents have built-in protection against social engineering. If a user tries to convince the agent to ignore its SOUL.md or act outside its defined identity, the agent is designed to resist. Shared identity files are injected into the system prompt at a level that takes precedence over user instructions.
@@ -152,4 +175,4 @@ Predefined agents have built-in protection against social engineering. If a user
 - [Tools Overview](#tools-overview) — What tools agents can use
 - [Memory System](#memory-system) — Long-term memory and search
 
-<!-- goclaw-source: 57754a5 | updated: 2026-03-18 -->
+<!-- goclaw-source: 57754a5 | updated: 2026-03-23 -->

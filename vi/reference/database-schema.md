@@ -961,6 +961,11 @@ Bảng permission tổng quát cho cấu hình agent (heartbeat, cron, file writ
 | 21 | `expires_at` trên paired_devices; `confidence_score` trên team_tasks, team_messages, team_task_comments |
 | 22 | Bảng `agent_heartbeats` và `heartbeat_run_logs` cho heartbeat monitoring; bảng permission tổng quát `agent_config_permissions` |
 | 23 | Hỗ trợ hard-delete agent (FK constraint cascade, unique index trên agent active); chuyển `group_file_writers` vào `agent_config_permissions` |
+| 24 | Tái cấu trúc team attachments — xóa `team_workspace_files`, `team_workspace_file_versions`, `team_workspace_comments` và `team_messages`; thêm bảng `team_task_attachments` dựa trên path gắn với task; thêm cột `comment_count` và `attachment_count` denormalized trên `team_tasks`; thêm `embedding vector(1536)` trên `team_tasks` cho semantic task search |
+| 25 | Thêm cột `embedding vector(1536)` và HNSW index vào `kg_entities` cho semantic entity search qua pgvector |
+| 26 | Thêm `owner_id VARCHAR(255)` vào `api_keys` — khi đặt, xác thực qua key này ép `user_id = owner_id` (API key gắn với user); thêm bảng `team_user_grants` cho kiểm soát truy cập team; xóa bảng `handoff_routes` và `delegation_history` cũ |
+| 27 | Tenant foundation — tạo bảng `tenants` và `tenant_users`; seed master tenant (`0193a5b0-7000-7000-8000-000000000001`); thêm cột `tenant_id` vào 40+ bảng cho multi-tenant isolation; thay unique constraint toàn cục bằng composite index theo tenant; thêm bảng `builtin_tool_tenant_configs`, `skill_tenant_configs` và `mcp_user_credentials`; xóa bảng `custom_tools` (dead code); chuyển UUID v4 default còn lại sang v7 |
+| 28 | Thêm `comment_type VARCHAR(20) DEFAULT 'note'` vào `team_task_comments` — hỗ trợ loại `"blocker"` kích hoạt tự động fail task và escalation lên lead |
 
 ---
 
@@ -970,4 +975,4 @@ Bảng permission tổng quát cho cấu hình agent (heartbeat, cron, file writ
 - [Config Reference](#config-reference) — cấu hình database map sang `config.json` như thế nào
 - [Glossary](#glossary) — Session, Compaction, Lane, và các thuật ngữ quan trọng khác
 
-<!-- goclaw-source: 941a965 | cập nhật: 2026-03-19 -->
+<!-- goclaw-source: 941a965 | cập nhật: 2026-03-23 -->

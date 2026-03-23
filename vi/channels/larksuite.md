@@ -155,6 +155,8 @@ Tối đa 30 MB mặc định (`media_max_mb`).
 
 **Gửi đi**: File tự động được phát hiện và upload với đúng loại (opus, mp4, pdf, doc, xls, ppt, hoặc stream).
 
+**Tin nhắn post dạng rich**: GoClaw cũng trích xuất hình ảnh được nhúng trong tin nhắn rich-text `post` của Lark (không chỉ tin nhắn hình ảnh độc lập). Ảnh trong nội dung post được tải xuống và đưa vào context tin nhắn đến cùng với media khác.
+
 ### Hỗ trợ @Mention
 
 Bot gửi @mention Lark gốc trong tin nhắn nhóm. Khi phản hồi của agent chứa pattern `@open_id` (ví dụ `@ou_abc123`), chúng được tự động chuyển thành phần tử `at` gốc của Lark, kích hoạt thông báo thực sự đến người dùng được đề cập. Hoạt động trong cả tin nhắn văn bản `post` và card tương tác.

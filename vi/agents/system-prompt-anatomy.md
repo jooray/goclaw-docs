@@ -35,7 +35,8 @@ Có hai **prompt mode**:
 | 10 | Additional Context | ✓ | ✓ | ExtraPrompt (context subagent, v.v.) |
 | 11 | Project Context | ✓ | ✓ | Các file context còn lại (AGENTS.md, USER.md, v.v.) |
 | 12 | Silent Replies | ✓ | ✗ | Hướng dẫn NO_REPLY |
-| 13 | Sub-Agent Spawning | ✓ | ✓ | Hướng dẫn tool spawn |
+| 13 | Sub-Agent Spawning | ✓ | ✓ | Hướng dẫn tool spawn (bỏ qua cho team agent có TEAM.md) |
+| 13.5 | Team Workspace | ✓ | ✓ | TEAM.md được inject động cho team agent |
 | 15 | Runtime | ✓ | ✓ | Agent ID, thông tin channel |
 | 16 | Recency Reinforcements | ✓ | ✓ | Nhắc nhở persona + memory ở cuối (chống "lost in the middle") |
 
@@ -101,6 +102,8 @@ Khi toàn bộ prompt vượt ngân sách, GoClaw truncate theo thứ tự này 
 
 Điều này đảm bảo safety, tooling, và workspace guidance không bao giờ bị cắt.
 
+> **Lưu ý:** Các phần safety, tooling, và workspace guidance không bao giờ bị truncate dù ngân sách bị vượt.
+
 ## Xây dựng Prompt (Luồng đơn giản hoá)
 
 ```
@@ -126,7 +129,8 @@ Thêm các phần theo thứ tự:
 10.  Additional Context (extra prompt)
 11.  Project Context (các file context còn lại: AGENTS.md, USER.md, v.v.)
 12.  Silent Replies (nếu full mode)
-13.  Sub-Agent Spawning (nếu có tool spawn)
+13.  Sub-Agent Spawning (nếu có tool spawn và không phải team agent)
+13.5 Team Workspace / TEAM.md (inject động cho team agent)
 15.  Runtime (agent ID, thông tin channel)
 16.  Recency Reinforcements (nhắc nhở persona + memory — chống "lost in the middle")
 
@@ -151,6 +155,19 @@ GoClaw load tối đa 8 file từ workspace hoặc database của agent. Chúng 
 4. **BOOTSTRAP.md** — Hướng dẫn lần đầu (user đang onboarding)
 5. **TOOLS.md** — Hướng dẫn sử dụng tool cho user (thông tin, không phải định nghĩa tool)
 6. **MEMORY.json** — Metadata bộ nhớ đã được index
+
+### TEAM.md — Inject động cho Team Agent
+
+Khi agent thuộc về một team, context `TEAM.md` được tạo động và inject ở phần 13.5 (Team Workspace). File này không được lưu trên đĩa — nó được lắp ráp lúc runtime từ cấu hình team:
+
+- **Lead agent** nhận hướng dẫn orchestration đầy đủ: cách dispatch task, quản lý thành viên, và phối hợp công việc.
+- **Member agent** nhận phiên bản rút gọn: vai trò của họ, đường dẫn team workspace, và giao thức giao tiếp.
+
+Khi TEAM.md có mặt, phần Sub-Agent Spawning (13) sẽ bị bỏ qua, vì team orchestration thay thế hướng dẫn spawn riêng lẻ.
+
+### User Identity — Phần 7
+
+Phần 7 (User Identity) được inject ở Full mode. Nó chứa owner ID của session hiện tại, dùng để kiểm tra quyền — ví dụ, xác minh lệnh đến từ chủ sở hữu agent trước khi thực hiện thao tác nhạy cảm.
 
 ### Logic hiện diện file
 
@@ -365,4 +382,4 @@ Agent này sẽ:
 - [Context Files — Thêm context dành riêng cho dự án](#context-files)
 - [Creating Agents — Thiết lập cấu hình system prompt](#creating-agents)
 
-<!-- goclaw-source: 120fc2d | cập nhật: 2026-03-18 -->
+<!-- goclaw-source: 120fc2d | cập nhật: 2026-03-23 -->

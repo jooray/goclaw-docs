@@ -56,6 +56,8 @@ Tất cả config key nằm trong `channels.telegram`:
 | `stt_timeout_seconds` | int | 30 | Timeout cho request STT |
 | `voice_agent_id` | string | -- | Định tuyến voice message đến agent cụ thể |
 
+**Giới hạn upload media**: Trường `media_max_bytes` áp đặt giới hạn cứng cho việc upload media ra ngoài do agent gửi (mặc định 20 MB). File vượt quá giới hạn này bị bỏ qua yên lặng và ghi log. Không ảnh hưởng đến media nhận vào từ người dùng.
+
 ## Cấu hình nhóm
 
 Ghi đè cài đặt theo từng nhóm (và theo topic) dùng object `groups`.
@@ -110,6 +112,10 @@ flowchart TD
     MENTION -->|Có| PROCESS["Xử lý ngay<br/>Kèm lịch sử làm context"]
     BUFFER --> NEXT["Mention tiếp theo:<br/>lịch sử được đưa vào"]
 ```
+
+### Đồng thời trong nhóm
+
+Session nhóm hỗ trợ tối đa **3 lần chạy agent đồng thời**. Khi đạt giới hạn này, các tin nhắn tiếp theo sẽ được xếp hàng. Áp dụng cho tất cả context nhóm và forum topic.
 
 ### Forum Topic
 

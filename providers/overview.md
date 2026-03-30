@@ -77,6 +77,7 @@ graph TD
     OAI --> Groq
     OAI --> Mistral
     OAI --> Venice
+    OAI --> Novita
 ```
 
 ## Auto-Clamp max_tokens
@@ -102,7 +103,6 @@ When a model rejects a request because `max_tokens` is too large, GoClaw automat
 - [Groq](/provider-groq) — ultra-fast inference
 - [Mistral](/provider-mistral) — Mistral AI models
 - [Venice](/provider-venice) — OpenAI-compatible provider with optional DIEM routing
+- [Novita AI](/provider-novita) — OpenAI-compatible, wide range of open-source models
 
-<!-- goclaw-source: 941a965 | updated: 2026-03-19 -->
-
-<!-- goclaw-source: 57754a5 | updated: 2026-03-18 -->
+<!-- goclaw-source: e7afa832 | updated: 2026-03-30 -->

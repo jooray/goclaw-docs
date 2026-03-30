@@ -67,6 +67,7 @@ API keys from environment override any values in `config.json`. Setting a key he
 | `GOCLAW_OLLAMA_HOST` | Ollama server URL (e.g. `http://localhost:11434`) |
 | `GOCLAW_OLLAMA_CLOUD_API_KEY` | Ollama Cloud API key |
 | `GOCLAW_OLLAMA_CLOUD_API_BASE` | Ollama Cloud custom base URL |
+| `GOCLAW_VENICE_ADMIN_KEY` | Venice DIEM admin key used for spend-aware routing |
 
 ### Provider & Model Defaults
 

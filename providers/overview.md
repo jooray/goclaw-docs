@@ -4,7 +4,7 @@
 
 ## Overview
 
-A provider wraps an LLM API and exposes a common interface: `Chat()`, `ChatStream()`, `DefaultModel()`, and `Name()`. GoClaw has two provider implementations: a native Anthropic client (custom HTTP+SSE) and a generic OpenAI-compatible client that covers OpenAI, OpenRouter, Gemini, DeepSeek, Groq, Mistral, and more. You pick which provider an agent uses via its config; the rest of the system is provider-agnostic.
+A provider wraps an LLM API and exposes a common interface: `Chat()`, `ChatStream()`, `DefaultModel()`, and `Name()`. GoClaw has two provider implementations: a native Anthropic client (custom HTTP+SSE) and a generic OpenAI-compatible client that covers OpenAI, OpenRouter, Gemini, DeepSeek, Groq, Mistral, and more. Venice can also be configured this way. You pick which provider an agent uses via its config; the rest of the system is provider-agnostic.
 
 ## Provider Interface
 
@@ -76,6 +76,7 @@ graph TD
     OAI --> DeepSeek
     OAI --> Groq
     OAI --> Mistral
+    OAI --> Venice
 ```
 
 ## Auto-Clamp max_tokens
@@ -100,6 +101,7 @@ When a model rejects a request because `max_tokens` is too large, GoClaw automat
 - [DeepSeek](/provider-deepseek) — DeepSeek with reasoning_content support
 - [Groq](/provider-groq) — ultra-fast inference
 - [Mistral](/provider-mistral) — Mistral AI models
+- [Venice](/provider-venice) — OpenAI-compatible provider with optional DIEM routing
 
 <!-- goclaw-source: 941a965 | updated: 2026-03-19 -->
 

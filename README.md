@@ -47,6 +47,7 @@
 - [Cohere](providers/cohere.md)
 - [Ollama](providers/ollama.md)
 - [Ollama Cloud](providers/ollama-cloud.md)
+- [Venice](providers/venice.md)
 - [Perplexity](providers/perplexity.md)
 - [DashScope (Qwen)](providers/dashscope.md)
 - [Bailian](providers/bailian.md)
@@ -69,6 +70,7 @@
 - [Zalo Personal](channels/zalo-personal.md)
 - [Slack](channels/slack.md)
 - [WhatsApp](channels/whatsapp.md)
+- [SimpleX](channels/simplex.md)
 - [WebSocket](channels/websocket.md)
 - [Browser Pairing](channels/browser-pairing.md)
 

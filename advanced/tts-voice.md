@@ -1,12 +1,12 @@
 # TTS Voice
 
-> Add voice replies to your agents — pick from four providers and control exactly when audio fires.
+> Add voice replies to your agents — choose a provider, control when audio fires, and deliver voice notes on supported channels.
 
 ## Overview
 
-GoClaw's TTS system converts agent text replies into audio and delivers them as voice messages on supported channels (e.g. Telegram voice bubbles). You configure a primary provider, set an auto-apply mode, and GoClaw handles the rest — stripping markdown, truncating long text, and choosing the right audio format per channel.
+GoClaw's TTS system converts agent text replies into audio and delivers them as voice messages on supported channels such as Telegram and SimpleX. You configure a primary provider, set an auto-apply mode, and GoClaw handles the rest — stripping markdown, truncating long text, and choosing the right audio format per channel.
 
-Four providers are available:
+Five providers are available:
 
 | Provider | Key | Requires |
 |----------|-----|---------|
@@ -14,6 +14,7 @@ Four providers are available:
 | ElevenLabs | `elevenlabs` | API key |
 | Microsoft Edge TTS | `edge` | `edge-tts` CLI (free) — always available as fallback |
 | MiniMax | `minimax` | API key + Group ID |
+| Kitten TTS | `kitten` | Local wrapper script + Python environment |
 
 ---
 
@@ -115,6 +116,32 @@ Popular voices: `en-US-MichelleNeural`, `en-GB-SoniaNeural`, `vi-VN-HoaiMyNeural
 
 ---
 
+### Kitten TTS (Local)
+
+Kitten is a local CPU-based provider intended for self-hosted setups. It uses an external wrapper script and returns WAV audio. Channels such as SimpleX can convert that WAV output into the format they need for voice-note delivery.
+
+```json
+{
+  "tts": {
+    "provider": "kitten",
+    "timeout_ms": 120000,
+    "kitten": {
+      "wrapper_path": "/opt/kitten-tts/kitten-tts.sh",
+      "voice": "Rosie",
+      "speed": "1.5"
+    }
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `wrapper_path` | Path to `kitten-tts.sh` |
+| `voice` | Default kitten voice |
+| `speed` | Speech speed as string |
+
+---
+
 ### MiniMax
 
 MiniMax's T2A API supports 300+ system voices and 40+ languages.
@@ -177,6 +204,12 @@ flowchart LR
     SYNTH --> SEND["Send as voice message"]
 ```
 
+### SimpleX Voice Notes
+
+When the originating channel is `simplex`, GoClaw can send generated audio as a SimpleX voice note. If the TTS provider returns WAV audio, the SimpleX channel converts it to M4A with `ffmpeg` before sending.
+
+This makes local TTS providers such as Kitten practical even when the messaging platform expects a different wire format.
+
 ### Tagged Mode
 
 Add `[[tts]]` anywhere in an agent reply to trigger synthesis in `tagged` mode:
@@ -225,6 +258,7 @@ pip install edge-tts
 | Issue | Cause | Fix |
 |-------|-------|-----|
 | `tts provider not found: edge` | `enabled` not set | Add `"enabled": true` to `edge` section |
+| `tts provider not found: kitten` | wrapper path missing | set `tts.kitten.wrapper_path` |
 | `edge-tts failed` | CLI not installed | `pip install edge-tts` |
 | `all tts providers failed` | All providers errored | Check API keys; inspect gateway logs |
 | No voice in Telegram | `auto` is `off` | Set `auto: "inbound"` or `"always"` |

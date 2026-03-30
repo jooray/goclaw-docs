@@ -12,22 +12,23 @@ Complete documentation for all messaging platform integrations in GoClaw.
 6. **[Zalo OA](./zalo-oa.md)** — Official Account, DM-only, pairing, images
 7. **[Zalo Personal](./zalo-personal.md)** — Personal account (unofficial), DM + groups
 8. **[WhatsApp](./whatsapp.md)** — External bridge, JSON protocol, auto-reconnect
-9. **[WebSocket](./websocket.md)** — Direct RPC, custom clients, streaming events
-10. **[Browser Pairing](./browser-pairing.md)** — 8-char code auth, session tokens
+9. **[SimpleX](./simplex.md)** — SimpleX CLI over WebSocket, groups, voice notes
+10. **[WebSocket](./websocket.md)** — Direct RPC, custom clients, streaming events
+11. **[Browser Pairing](./browser-pairing.md)** — 8-char code auth, session tokens
 
 ## Channel Comparison Table
 
-| Feature | Telegram | Discord | Slack | Larksuite | Zalo OA | Zalo Pers | WhatsApp | WebSocket |
-|---------|----------|---------|-------|--------|---------|-----------|----------|-----------|
-| **Setup Complexity** | Easy | Easy | Easy | Medium | Medium | Hard | Hard | Very Easy |
-| **Transport** | Polling | Gateway | Socket Mode | WS/Webhook | Polling | Protocol | Bridge | WebSocket |
-| **DM Support** | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A |
-| **Group Support** | Yes | Yes | Yes | Yes | No | Yes | Yes | N/A |
-| **Streaming** | Yes | Yes | Yes | Yes | No | No | No | Yes |
-| **Rich Format** | HTML | Markdown | mrkdwn | Cards | Plain | Plain | JSON | JSON |
+| Feature | Telegram | Discord | Slack | SimpleX | Larksuite | Zalo OA | Zalo Pers | WhatsApp | WebSocket |
+|---------|----------|---------|-------|---------|--------|---------|-----------|----------|-----------|
+| **Setup Complexity** | Easy | Easy | Easy | Medium | Medium | Medium | Hard | Hard | Very Easy |
+| **Transport** | Polling | Gateway | Socket Mode | CLI WebSocket | WS/Webhook | Polling | Protocol | Bridge | WebSocket |
+| **DM Support** | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | N/A |
+| **Group Support** | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes | N/A |
+| **Streaming** | Yes | Yes | Yes | No | Yes | No | No | No | Yes |
+| **Rich Format** | HTML | Markdown | mrkdwn | Plain | Cards | Plain | Plain | JSON | JSON |
 | **Reactions** | Yes | -- | Yes | Yes | -- | -- | -- | -- |
-| **Media** | Photos, Voice, Files | Files, Embeds | Files (20MB) | Images, Files | Images | -- | JSON | N/A |
-| **Auth Method** | Token | Token | 3 Tokens | App ID + Secret | API Key | Credentials | Bridge | Token + Pairing |
+| **Media** | Photos, Voice, Files | Files, Embeds | Files (20MB) | Files, Voice | Images, Files | Images | -- | JSON | N/A |
+| **Auth Method** | Token | Token | 3 Tokens | SimpleX CLI session | App ID + Secret | API Key | Credentials | Bridge | Token + Pairing |
 | **Risk Level** | Low | Low | Low | Low | Low | High | Medium | Low |
 
 ## Configuration Files
@@ -40,6 +41,7 @@ All channel config lives in the root `config.json`:
     "telegram": { ... },
     "discord": { ... },
     "slack": { ... },
+    "simplex": { ... },
     "feishu": { ... },
     "zalo": { ... },
     "zalo_personal": { ... },
@@ -117,6 +119,13 @@ Flexible format supporting:
 - [ ] Copy Bot User OAuth Token (`xoxb-`)
 - [ ] Enable in config with both tokens
 - [ ] Invite bot to channels
+
+### SimpleX
+
+- [ ] Run `simplex-chat` with WebSocket enabled
+- [ ] Copy the WebSocket URL
+- [ ] Enable in config
+- [ ] Optionally configure STT and allowed groups
 
 ### Larksuite
 

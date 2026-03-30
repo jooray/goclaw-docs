@@ -236,6 +236,23 @@ Messaging channel configuration.
 | `voice_agent_id` | string | — | Route voice messages to this agent |
 | `groups` | object | — | Per-group overrides keyed by chat ID |
 
+### `channels.simplex`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable SimpleX channel |
+| `websocket_url` | string | — | WebSocket URL exposed by `simplex-chat` |
+| `allow_from` | string[] | — | Allowlist of senders/groups |
+| `group_policy` | string | `open` | `"open"`, `"allowlist"`, `"disabled"` |
+| `allowed_groups` | string[] | — | Group IDs allowed when `group_policy` is `allowlist` |
+| `text_chunk_limit` | integer | `4000` | Max chars per outbound text chunk |
+| `block_reply` | boolean | — | Override gateway `block_reply` (unset = inherit) |
+| `files_folder` | string | `~/.simplex/simplex_v1_files` | Folder where SimpleX stores received files |
+| `stt_proxy_url` | string | — | Speech-to-text proxy URL for inbound voice/audio |
+| `stt_api_key` | string | — | Optional STT Bearer token |
+| `stt_timeout_seconds` | integer | `30` | STT timeout in seconds |
+| `voice_agent_id` | string | — | Route inbound voice/audio to this agent |
+
 ### `channels.discord`
 
 | Field | Type | Default | Description |
@@ -431,7 +448,7 @@ Text-to-speech output. Configure a provider and optionally enable auto-TTS.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `provider` | string | — | TTS provider: `"openai"`, `"elevenlabs"`, `"edge"`, `"minimax"` |
+| `provider` | string | — | TTS provider: `"openai"`, `"elevenlabs"`, `"edge"`, `"minimax"`, `"kitten"` |
 | `auto` | string | `off` | When to auto-speak: `"off"`, `"always"`, `"inbound"` (only reply to voice), `"tagged"` |
 | `mode` | string | `final` | Which responses to speak: `"final"` (complete reply only) or `"all"` (each streamed chunk) |
 | `max_length` | integer | `1500` | Max text length before truncation |
@@ -465,6 +482,16 @@ Microsoft Edge TTS — free, no API key required.
 | `voice` | string | `en-US-MichelleNeural` | Voice name (SSML-compatible) |
 | `rate` | string | `+0%` | Speech rate adjustment (e.g. `"+10%"`, `"-5%"`) |
 
+### `tts.kitten`
+
+Local CPU-based Kitten TTS provider.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `wrapper_path` | string | — | Path to `kitten-tts.sh` wrapper |
+| `voice` | string | `Rosie` | Default voice |
+| `speed` | string | `1.5` | Speech speed |
+
 ### `tts.minimax`
 
 | Field | Type | Default | Description |
@@ -485,6 +512,30 @@ Microsoft Edge TTS — free, no API key required.
 | `retry_base_delay` | string | `2s` | Initial retry backoff (Go duration, e.g. `"2s"`) |
 | `retry_max_delay` | string | `30s` | Maximum retry backoff |
 | `default_timezone` | string | — | IANA timezone for cron expressions when not set per-job (e.g. `"Asia/Ho_Chi_Minh"`, `"America/New_York"`) |
+
+---
+
+## `diem`
+
+DIEM-aware Venice routing.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable DIEM-based model routing |
+| `api_base` | string | `https://api.venice.ai/api/v1` | Venice API base for balance queries |
+| `provider_name` | string | `venice` | Registry name of the Venice provider to wrap |
+| `fallback_name` | string | `ollama-cloud` | Fallback provider name |
+| `fallback_model` | string | `qwen3.5:397b-cloud` | Model on fallback provider |
+| `cache_ttl_secs` | integer | `600` | Balance cache TTL in seconds |
+| `max_retries` | integer | `2` | Max Venice retry attempts |
+| `tiers` | array | built-in | Spend percentage routing table |
+
+Each `tiers` entry:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `max_percent` | float | Upper inclusive spend threshold |
+| `model` | string | Model selected up to that threshold |
 
 ---
 

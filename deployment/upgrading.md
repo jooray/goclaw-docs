@@ -56,6 +56,19 @@ graph LR
 
 ## Standard Upgrade Procedure
 
+If you deploy from a fork instead of upstream `main`, pull from your deployment branch first, then build and run the upgrade from that checkout. Example fork workflow:
+
+```bash
+git remote add upstream https://github.com/nextlevelbuilder/goclaw.git
+git fetch upstream
+git checkout integration
+git merge upstream/main
+go build -o goclaw-new .
+./goclaw-new upgrade --status
+```
+
+In the example above, `integration` is the deployed branch in `jooray/goclaw`. Adapt the branch name to your own deployment flow.
+
 ### Step 1 — Back up the database
 
 ```bash

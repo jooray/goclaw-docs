@@ -1,12 +1,12 @@
 # Channels Overview
 
-Channels connect messaging platforms (Telegram, Discord, Larksuite, etc.) to the GoClaw agent runtime via a unified message bus. Each channel translates platform-specific events into standardized `InboundMessage` objects and converts agent responses into platform-appropriate output.
+Channels connect messaging platforms (Telegram, Discord, SimpleX, Larksuite, etc.) to the GoClaw agent runtime via a unified message bus. Each channel translates platform-specific events into standardized `InboundMessage` objects and converts agent responses into platform-appropriate output.
 
 ## Message Flow
 
 ```mermaid
 flowchart LR
-    TG["Telegram<br/>Discord<br/>Slack<br/>Larksuite<br/>Zalo<br/>WhatsApp"]
+    TG["Telegram<br/>Discord<br/>Slack<br/>SimpleX<br/>Larksuite<br/>Zalo<br/>WhatsApp"]
 
     TG -->|"Platform event"| Listen["Channel.Start()<br/>Listen for updates"]
     Listen -->|"Build message"| Handle["HandleMessage()<br/>Extract content, media,<br/>sender ID, chat ID"]
@@ -86,18 +86,18 @@ The `media_max_bytes` config field enforces a per-channel limit on outbound medi
 
 ## Channel Comparison
 
-| Feature | Telegram | Discord | Slack | Larksuite | Zalo OA | Zalo Pers | WhatsApp |
-|---------|----------|---------|-------|--------|---------|-----------|----------|
-| **Transport** | Long polling | Gateway events | Socket Mode (WS) | WS/Webhook | Long polling | Internal proto | WS bridge |
-| **DM support** | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Group support** | Yes | Yes | Yes | Yes | No | Yes | Yes |
-| **Streaming** | Yes (typing) | Yes (edit) | Yes (edit) | Yes (card) | No | No | No |
-| **Media** | Photos, voice, files | Files, embeds | Files (20MB) | Images, files (30MB) | Images (5MB) | -- | JSON |
-| **Reply media** | Yes | Yes | -- | Yes | -- | -- | -- |
-| **Rich format** | HTML | Markdown | mrkdwn | Cards | Plain text | Plain text | Plain |
-| **Reactions** | Yes | -- | Yes | Yes | -- | -- | -- |
+| Feature | Telegram | Discord | Slack | SimpleX | Larksuite | Zalo OA | Zalo Pers | WhatsApp |
+|---------|----------|---------|-------|---------|--------|---------|-----------|----------|
+| **Transport** | Long polling | Gateway events | Socket Mode (WS) | CLI WebSocket | WS/Webhook | Long polling | Internal proto | WS bridge |
+| **DM support** | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| **Group support** | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes |
+| **Streaming** | Yes (typing) | Yes (edit) | Yes (edit) | No | Yes (card) | No | No | No |
+| **Media** | Photos, voice, files | Files, embeds | Files (20MB) | Files, voice | Images, files (30MB) | Images (5MB) | -- | JSON |
+| **Reply media** | Yes | Yes | -- | Yes | Yes | -- | -- | -- |
+| **Rich format** | HTML | Markdown | mrkdwn | Plain text | Cards | Plain text | Plain text | Plain |
+| **Reactions** | Yes | -- | Yes | -- | Yes | -- | -- | -- |
 | **Pairing** | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Message limit** | 4,096 | 2,000 | 4,000 | 4,000 | 2,000 | 2,000 | N/A |
+| **Message limit** | 4,096 | 2,000 | 4,000 | 4,000 | 4,000 | 2,000 | 2,000 | N/A |
 
 ## Implementation Checklist
 
@@ -153,6 +153,7 @@ Channels may enforce per-user rate limits. Configure via channel settings or imp
 - [Discord](/channel-discord) — Discord bot setup
 - [Slack](/channel-slack) — Slack Socket Mode integration
 - [Larksuite](/channel-feishu) — Larksuite integration with streaming cards
+- [SimpleX](/channel-simplex) — WebSocket bridge through the SimpleX CLI
 - [WebSocket](/channel-websocket) — Direct agent API via WS
 - [Browser Pairing](/channel-browser-pairing) — 8-char code pairing flow
 

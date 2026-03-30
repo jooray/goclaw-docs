@@ -199,6 +199,44 @@ The `quota.usage` method returns today's cost alongside usage counters:
 
 ---
 
+
+---
+
+## Venice DIEM Routing
+
+GoClaw also supports a DIEM-aware routing layer for Venice. This is related to cost control, but it is distinct from passive cost tracking.
+
+With DIEM routing enabled, GoClaw wraps the configured Venice provider and chooses a model based on current DIEM spend percentage. This lets you use stronger models early in the cycle and automatically step down as budget usage increases.
+
+Example config:
+
+```json
+{
+  "diem": {
+    "enabled": true,
+    "provider_name": "venice",
+    "fallback_name": "ollama-cloud",
+    "fallback_model": "qwen3.5:397b-cloud",
+    "cache_ttl_secs": 600,
+    "max_retries": 2,
+    "tiers": [
+      { "max_percent": 34, "model": "claude-sonnet-4-6" },
+      { "max_percent": 64, "model": "grok-4-20-beta" },
+      { "max_percent": 89, "model": "gemini-3-flash-preview" },
+      { "max_percent": 100, "model": "grok-41-fast" }
+    ]
+  }
+}
+```
+
+Required environment variable:
+
+```bash
+GOCLAW_VENICE_ADMIN_KEY=...
+```
+
+Use this when you want active spend-based model steering rather than just reporting.
+
 ## Monthly Budget Enforcement
 
 You can cap an agent's monthly spend by setting `budget_monthly_cents` on the agent record. When set, GoClaw queries the current month's accumulated cost before each run and blocks execution if the budget is exceeded.

@@ -173,6 +173,16 @@ go build -o goclaw .
 ./goclaw version
 ```
 
+If you are deploying from a custom fork instead of upstream `main`, clone that fork and check out its deployment branch before building. Example:
+
+```bash
+git clone https://github.com/jooray/goclaw.git
+cd goclaw
+git checkout integration
+go build -o goclaw .
+./goclaw version
+```
+
 > **Python runtime (optional):** Some built-in skills require Python 3. Install it with `sudo apt install -y python3 python3-pip` (Ubuntu/Debian) or `brew install python` (macOS) if you plan to use those skills.
 
 **Build Tags (Optional):** Enable extra features at compile time:
@@ -237,6 +247,15 @@ git clone https://github.com/nextlevelbuilder/goclaw.git
 cd goclaw
 
 # Auto-generate encryption key + gateway token
+./prepare-env.sh
+```
+
+For a fork-based deployment, use your fork and deployment branch instead. Example:
+
+```bash
+git clone https://github.com/jooray/goclaw.git
+cd goclaw
+git checkout integration
 ./prepare-env.sh
 ```
 

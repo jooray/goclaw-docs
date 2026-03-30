@@ -144,6 +144,6 @@ If `stt_proxy_url` is configured, inbound voice or audio attachments can be tran
 
 ## What's Next
 
-- [TTS & Voice](/tts-voice)
-- [Channels Overview](/channel-overview)
-- [Config Reference](/config-reference)
+- [TTS & Voice](../advanced/tts-voice.md) — text-to-speech and voice note delivery
+- [Channels Overview](./overview.md) — channel concepts and policies
+- [Config Reference](../reference/config-reference.md) — full channel config options

@@ -123,6 +123,6 @@ The DIEM router is useful when you want predictable cost control without manuall
 
 ## What's Next
 
-- [Providers Overview](/provider-overview)
-- [Cost Tracking](/cost-tracking)
-- [Config Reference](/config-reference)
+- [Providers Overview](./overview.md) — all available providers
+- [Cost Tracking](../advanced/cost-tracking.md) — track Venice spending
+- [Config Reference](../reference/config-reference.md) — full diem config options
